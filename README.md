@@ -26,6 +26,7 @@ The app isn't code-signed yet, so the first launch needs one extra click:
 - **Journal:** drop, paste or pick a screenshot of a trade and Claude fills in the details for you to check (needs your Anthropic API key in Settings, roughly 1-2 cents per screenshot). You can also add trades by hand or import Tradovate's Performance report CSV. Setup, tags, stop and notes are kept when the same trades are re-imported.
 - **Analysis:** net P&L, win rate, profit factor, expectancy, average R, max drawdown, equity curve, daily P&L, and breakdowns by setup, hour (ET) and weekday. MNQ is valued at $2/point.
 - **Accounts:** dashboard for prop firm evaluations and funded accounts: balance, profit target progress, trailing/EOD/static drawdown room and breach level, daily loss limit and trading days. Pick the account when importing or logging trades.
+- **Tradovate connection:** in Settings, enter your Tradovate login and API key (Tradovate Settings > API Access). Link each card on the Accounts page to a Tradovate account and its fills and balance sync every minute while the app is open. Trades match the CSV import, so nothing doubles up.
 - **Alerts:** price-cross alerts shown as desktop notifications while the app is open, checked every 15s against a free delayed quote (Yahoo Finance `MNQ=F`, unofficial).
 - **Sync:** data is stored locally first and synced through Supabase when signed in.
 

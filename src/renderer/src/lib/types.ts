@@ -64,6 +64,11 @@ export interface PropAccount {
   minTradingDays?: number
   /** One-off adjustments such as payouts (negative) or resets. */
   adjustments?: number
+  /** Linked Tradovate account; its fills and balance sync automatically. */
+  tradovateAccountId?: number
+  /** Last cash balance reported by the broker. */
+  brokerBalance?: number
+  brokerSyncedAt?: string
   updatedAt: string
   deleted?: boolean
 }

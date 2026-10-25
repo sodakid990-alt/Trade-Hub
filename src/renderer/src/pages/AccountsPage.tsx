@@ -1,9 +1,10 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db, deleteAccount, newId, saveAccount, stamp } from '../lib/db'
 import { accountStatus } from '../lib/propAccounts'
 import type { PropAccount } from '../lib/types'
 import { pnlClass, usd } from '../components/format'
+import type { TradovateAccount } from '../../../preload'
 
 const blank = (): PropAccount => ({
   id: newId(), name: '', firm: '', stage: 'eval', status: 'active', startingBalance: 50000,
@@ -77,6 +78,7 @@ function AccountCard({ account: a, trades, onEdit }: { account: PropAccount; tra
       <div className="row">
         <strong>{a.name || `${a.firm} ${a.startingBalance / 1000}K`}</strong>
         <span className="muted">{a.firm}</span>
+        {a.tradovateAccountId !== undefined && <span className="live" title={a.brokerSyncedAt ? `Balance from Tradovate, ${new Date(a.brokerSyncedAt).toLocaleString()}` : 'Linked to Tradovate'}>● Live</span>}
         <div className="spacer" />
         <span className={`badge ${a.status}`}>{s.breached && a.status === 'active' ? 'breached' : s.targetHit && a.stage === 'eval' && a.status === 'active' ? 'target hit' : a.status}</span>
       </div>
@@ -136,6 +138,7 @@ function AccountForm({ account, onClose }: { account: PropAccount; onClose: () =
       <label>Daily loss limit{optional('dailyLossLimit')}</label>
       <label>Min trading days{optional('minTradingDays')}</label>
       <label>Payouts / adjustments{optional('adjustments')}</label>
+      <TradovateLink value={a.tradovateAccountId} onChange={(id) => setA({ ...a, tradovateAccountId: id, brokerBalance: id === undefined ? undefined : a.brokerBalance })} />
       <div className="wide actions">
         <button type="button" className="link" onClick={async () => { await deleteAccount(a.id); onClose() }}>Delete</button>
         <div className="spacer" />
@@ -143,5 +146,24 @@ function AccountForm({ account, onClose }: { account: PropAccount; onClose: () =
         <button type="submit" className="primary">Save</button>
       </div>
     </form>
+  )
+}
+
+/** Picks which Tradovate account feeds this card. Hidden until Tradovate is connected in Settings. */
+function TradovateLink({ value, onChange }: { value?: number; onChange: (id?: number) => void }) {
+  const [accounts, setAccounts] = useState<TradovateAccount[] | null>(null)
+  useEffect(() => {
+    window.hub?.tradovate.status().then((s) => {
+      if (s.connected) window.hub!.tradovate.accounts().then(setAccounts).catch(() => setAccounts([]))
+    })
+  }, [])
+  if (!accounts) return null
+  return (
+    <label>Tradovate account
+      <select value={value ?? ''} onChange={(e) => onChange(e.target.value ? Number(e.target.value) : undefined)}>
+        <option value="">Not linked</option>
+        {accounts.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
+      </select>
+    </label>
   )
 }

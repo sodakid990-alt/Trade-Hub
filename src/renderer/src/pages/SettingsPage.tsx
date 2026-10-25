@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import type { User } from '@supabase/supabase-js'
+import type { TradovateAccount, TradovateCreds } from '../../../preload'
 import { supabase, syncNow } from '../lib/sync'
 
 export function SettingsPage() {
@@ -8,10 +9,11 @@ export function SettingsPage() {
       <header className="page-header">
         <div>
           <h1>Settings</h1>
-          <p className="muted">Sync between your computers and screenshot reading.</p>
+          <p className="muted">Sync, broker connection and screenshot reading.</p>
         </div>
       </header>
       <SyncSettings />
+      <TradovateSettings />
       <ApiKeySettings />
     </div>
   )
@@ -102,6 +104,98 @@ function ApiKeySettings() {
           <button className="primary" type="submit">Save key</button>
         </form>
       )}
+    </section>
+  )
+}
+
+const emptyCreds: TradovateCreds = { env: 'demo', username: '', password: '', cid: '', secret: '' }
+
+function TradovateSettings() {
+  const [status, setStatus] = useState<{ connected: boolean; env?: string; username?: string }>()
+  const [accounts, setAccounts] = useState<TradovateAccount[]>([])
+  const [creds, setCreds] = useState(emptyCreds)
+  const [msg, setMsg] = useState<{ error: boolean; text: string } | null>(null)
+  const [busy, setBusy] = useState(false)
+  const set = <K extends keyof TradovateCreds>(k: K, v: TradovateCreds[K]) => setCreds({ ...creds, [k]: v })
+  const clean = (e: unknown) => (e as Error).message.replace(/^Error invoking remote method '[^']+': (Error: )?/, '')
+
+  useEffect(() => {
+    window.hub?.tradovate.status().then((s) => {
+      setStatus(s)
+      if (s.connected) window.hub!.tradovate.accounts().then(setAccounts).catch((e) => setMsg({ error: true, text: clean(e) }))
+    })
+  }, [])
+
+  const connect = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setBusy(true)
+    setMsg(null)
+    try {
+      setAccounts(await window.hub!.tradovate.connect(creds))
+      setStatus({ connected: true, env: creds.env, username: creds.username })
+      setCreds(emptyCreds)
+      setMsg({ error: false, text: 'Connected. Link each account on the Accounts page to start syncing.' })
+      window.dispatchEvent(new Event('tradovate-changed'))
+    } catch (err) {
+      setMsg({ error: true, text: clean(err) })
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  const disconnect = async () => {
+    await window.hub!.tradovate.disconnect()
+    setStatus({ connected: false })
+    setAccounts([])
+    window.dispatchEvent(new Event('tradovate-changed'))
+  }
+
+  return (
+    <section className="card">
+      <h3>Tradovate connection</h3>
+      <p className="muted">
+        Pulls your fills and balances automatically every minute, so your journal and account cards stay current.
+        Needs an API key from Tradovate (log in, then Settings, then API Access). Credentials are encrypted and stay on this computer.
+      </p>
+      {status?.connected ? (
+        <>
+          <div className="row gap">
+            <span className="badge passed">Connected</span>
+            <span className="muted">{status.username} · {status.env === 'live' ? 'Live' : 'Demo / prop firm sim'}</span>
+            <div className="spacer" />
+            <button className="ghost" onClick={disconnect}>Disconnect</button>
+          </div>
+          {accounts.length > 0 && (
+            <table className="compact">
+              <thead><tr><th>Tradovate account</th><th className="num">Balance</th></tr></thead>
+              <tbody>
+                {accounts.map((a) => (
+                  <tr key={a.id}><td>{a.name}</td><td className="num">{a.balance === undefined ? '' : '$' + a.balance.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td></tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </>
+      ) : (
+        <form className="form plain" onSubmit={connect}>
+          <label>Server
+            <select value={creds.env} onChange={(e) => set('env', e.target.value as TradovateCreds['env'])}>
+              <option value="demo">Demo (prop firm evals and sim-funded)</option>
+              <option value="live">Live</option>
+            </select>
+          </label>
+          <label>Username<input value={creds.username} onChange={(e) => set('username', e.target.value)} autoComplete="off" /></label>
+          <label>Password<input type="password" value={creds.password} onChange={(e) => set('password', e.target.value)} /></label>
+          <label>API key ID (CID)<input value={creds.cid} onChange={(e) => set('cid', e.target.value)} /></label>
+          <label className="wide">API secret<input type="password" value={creds.secret} onChange={(e) => set('secret', e.target.value)} /></label>
+          <div className="wide actions">
+            <button className="primary" type="submit" disabled={busy || !creds.username || !creds.password || !creds.cid || !creds.secret}>
+              {busy ? 'Connecting…' : 'Connect Tradovate'}
+            </button>
+          </div>
+        </form>
+      )}
+      {msg && <div className={`notice ${msg.error ? 'error' : ''}`} style={{ marginTop: 12, marginBottom: 0 }}>{msg.text}</div>}
     </section>
   )
 }

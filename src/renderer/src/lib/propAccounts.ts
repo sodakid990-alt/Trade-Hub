@@ -34,6 +34,11 @@ export function accountStatus(account: PropAccount, trades: Trade[], today = byD
     balance += pnl
     if (account.drawdownType === 'trailing') peak = Math.max(peak, balance)
   }
+  // A linked broker's balance is authoritative (it includes fees and anything not journaled).
+  if (account.brokerBalance !== undefined) {
+    balance = account.brokerBalance
+    if (account.drawdownType === 'trailing') peak = Math.max(peak, balance)
+  }
   if (account.drawdownType === 'eod') {
     let eod = start
     for (const [, pnl] of [...daily].sort(([a], [b]) => a.localeCompare(b))) {

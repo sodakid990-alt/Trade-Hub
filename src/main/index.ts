@@ -3,6 +3,7 @@ import { join } from 'node:path'
 import { extractTrades } from './extractTrade'
 import { fetchQuote } from './quote'
 import { getApiKey, setApiKey } from './secrets'
+import { listAccounts, loadCreds, saveCreds, snapshot, type TradovateCreds } from './tradovate'
 import { openTradingViewLogin, prepareTradingViewSession, TV_PARTITION } from './tradingviewLogin'
 
 function createWindow() {
@@ -35,6 +36,30 @@ ipcMain.handle('extract-trades', (_e, imageBase64: string, mediaType: Parameters
   const key = getApiKey()
   if (!key) throw new Error('Add your Anthropic API key in Settings first.')
   return extractTrades(key, imageBase64, mediaType)
+})
+
+ipcMain.handle('tradovate:status', () => {
+  const c = loadCreds()
+  return c ? { connected: true, env: c.env, username: c.username } : { connected: false }
+})
+ipcMain.handle('tradovate:connect', async (_e, creds: TradovateCreds) => {
+  saveCreds(creds)
+  try {
+    return await listAccounts(creds)
+  } catch (err) {
+    saveCreds(null)
+    throw err
+  }
+})
+ipcMain.handle('tradovate:disconnect', () => saveCreds(null))
+ipcMain.handle('tradovate:accounts', () => {
+  const c = loadCreds()
+  return c ? listAccounts(c) : []
+})
+ipcMain.handle('tradovate:snapshot', () => {
+  const c = loadCreds()
+  if (!c) throw new Error('Tradovate is not connected')
+  return snapshot(c)
 })
 
 ipcMain.handle('tradingview-login', (e) => openTradingViewLogin(BrowserWindow.fromWebContents(e.sender)!))

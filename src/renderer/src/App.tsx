@@ -7,6 +7,7 @@ import { SettingsPage } from './pages/SettingsPage'
 import { AccountsPage } from './pages/AccountsPage'
 import { useAutoSync } from './components/useAutoSync'
 import { useQuote } from './components/useQuote'
+import { useTradovateSync } from './components/useTradovateSync'
 import { Icon, type IconName } from './components/Icon'
 
 const PAGES = {
@@ -23,6 +24,7 @@ export function App() {
   const [page, setPage] = useState<PageName>('Chart')
   const status = useAutoSync()
   const { quote, error } = useQuote()
+  const brokerStatus = useTradovateSync()
   const { Page } = PAGES[page]
   const syncState = status.startsWith('Synced') ? 'ok' : status.startsWith('Sync error') ? 'error' : 'idle'
   return (
@@ -48,6 +50,12 @@ export function App() {
           <div className="quote-price">{quote ? quote.price.toFixed(2) : '—'}</div>
           {error && <div className="small muted">{error}</div>}
         </div>
+        {brokerStatus && (
+          <div className={`sync-pill ${brokerStatus.includes('failed') || brokerStatus.includes('not') ? 'error' : 'ok'}`} title={brokerStatus}>
+            <span className="dot" />
+            <span>{brokerStatus}</span>
+          </div>
+        )}
         <div className={`sync-pill ${syncState}`} title={status}>
           <span className="dot" />
           <span>{status}</span>

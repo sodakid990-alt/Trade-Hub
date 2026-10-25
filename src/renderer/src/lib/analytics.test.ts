@@ -140,3 +140,38 @@ describe('screenshot drafts', () => {
     expect(d.accountId).toBe('acct')
   })
 })
+
+import { pairsToTrades } from './tradovateSync'
+
+describe('tradovate sync', () => {
+  const snap = {
+    accounts: [{ id: 7, name: 'LUCID50K1', balance: 50120 }],
+    fills: [
+      { id: 1, contractId: 99, timestamp: '2026-10-23T13:31:00Z', action: 'Buy' as const, qty: 1, price: 21000 },
+      { id: 2, contractId: 99, timestamp: '2026-10-23T13:35:00Z', action: 'Sell' as const, qty: 1, price: 21020 },
+      { id: 3, contractId: 99, timestamp: '2026-10-23T14:10:00Z', action: 'Buy' as const, qty: 2, price: 21030 },
+      { id: 4, contractId: 99, timestamp: '2026-10-23T14:02:00Z', action: 'Sell' as const, qty: 2, price: 21040 }
+    ],
+    fillPairs: [
+      { id: 10, positionId: 5, buyFillId: 1, sellFillId: 2, qty: 1, buyPrice: 21000, sellPrice: 21020 },
+      { id: 11, positionId: 5, buyFillId: 3, sellFillId: 4, qty: 2, buyPrice: 21030, sellPrice: 21040 },
+      { id: 12, positionId: 5, buyFillId: 3, sellFillId: 404, qty: 1, buyPrice: 1, sellPrice: 1 }
+    ],
+    contracts: { 99: 'MNQZ6' },
+    positionAccounts: { 5: 7 }
+  }
+
+  it('pairs fills into long and short trades with CSV-compatible ids', () => {
+    const [long, short, ...rest] = pairsToTrades(snap, 'now')
+    expect(rest).toEqual([])
+    expect(long).toMatchObject({ id: 'tv-1-2', symbol: 'MNQZ6', side: 'long', entryPrice: 21000, exitPrice: 21020, brokerAccountId: 7 })
+    expect(short).toMatchObject({ id: 'tv-3-4', side: 'short', qty: 2, entryPrice: 21040, exitPrice: 21030 })
+    expect(netPnl(short)).toBe(40)
+  })
+
+  it('uses the broker balance when an account is linked', () => {
+    const acct = { id: 'p', name: '', firm: 'Lucid', stage: 'funded' as const, status: 'active' as const, startingBalance: 50000, maxDrawdown: 2000, drawdownType: 'static' as const, brokerBalance: 50120, updatedAt: '' }
+    expect(accountStatus(acct, []).balance).toBe(50120)
+    expect(accountStatus(acct, []).room).toBe(2120)
+  })
+})

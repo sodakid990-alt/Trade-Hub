@@ -154,3 +154,8 @@ tbody tr:hover { background: var(--panel-2); cursor: pointer; }
 .bar { height: 6px; background: var(--panel-2); border-radius: 3px; overflow: hidden; }
 .bar .fill { height: 100%; background: var(--pos); border-radius: 3px; }
 .bar .fill.danger { background: var(--neg); }
+.live { font-size: 11px; font-weight: 600; color: var(--pos); }
+.form.plain { border: 0; padding: 0; margin: 4px 0 0; background: none; }
+table.compact { margin-top: 12px; }
+table.compact td, table.compact th { padding: 7px 4px; }
+button:disabled { opacity: 0.5; cursor: default; }
