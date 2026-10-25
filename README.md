@@ -32,7 +32,7 @@ The app isn't code-signed yet, so the first launch needs one extra click:
 - **Accounts:** add a Lucid account by picking the plan (Flex, Pro, Direct, Daily), size and stage; the rules fill in automatically (other firms can enter rules by hand). Dashboard for prop firm evaluations and funded accounts: balance, profit target progress, trailing/EOD/static drawdown room and breach level, daily loss limit and trading days. Pick the account when importing or logging trades. Funded accounts track payouts.
 - **Tradovate connection:** in Settings, enter your Tradovate login and API key (Tradovate Settings > API Access). Link each card on the Accounts page to a Tradovate account and its fills and balance sync every minute while the app is open. Trades match the CSV import, so nothing doubles up.
 - **Alerts:** price-cross alerts shown as desktop notifications while the app is open, checked every 15s against a free delayed quote (Yahoo Finance `MNQ=F`, unofficial).
-- **Settings:** Basics (theme, commission, daily max loss), Connections (sync, Tradovate) and More options (extra pages, accent color, compact mode, start page, default symbol and account, commission per side, your own tags, and warning level). Ctrl/⌘+1-9 switches pages, N adds a trade, and deletes can be undone.
+- **Settings:** Basics (theme, commission, daily max loss), Connections (sync, Tradovate) and More options (extra pages, accent color, compact mode, start page, default symbol, your own tags and warning level). Ctrl/⌘+1-9 switches pages, N adds a trade, and deletes can be undone.
 - **Sync:** data is stored locally first and synced through Supabase when signed in.
 
 ## Setting up sync
