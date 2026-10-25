@@ -4,10 +4,11 @@ import { JournalPage } from './pages/JournalPage'
 import { AnalysisPage } from './pages/AnalysisPage'
 import { AlertsPage } from './pages/AlertsPage'
 import { SyncPage } from './pages/SyncPage'
+import { AccountsPage } from './pages/AccountsPage'
 import { useAutoSync } from './components/useAutoSync'
 import { useQuote } from './components/useQuote'
 
-const PAGES = { Chart: ChartPage, Journal: JournalPage, Analysis: AnalysisPage, Alerts: AlertsPage, Sync: SyncPage }
+const PAGES = { Chart: ChartPage, Journal: JournalPage, Analysis: AnalysisPage, Accounts: AccountsPage, Alerts: AlertsPage, Sync: SyncPage }
 type PageName = keyof typeof PAGES
 
 export function App() {

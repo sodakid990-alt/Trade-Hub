@@ -95,3 +95,35 @@ describe('quote parsing', () => {
     expect(parseYahooChart({ chart: { result: null } })).toBeNull()
   })
 })
+
+import { accountStatus } from './propAccounts'
+import type { PropAccount } from './types'
+
+describe('prop accounts', () => {
+  const acct: PropAccount = {
+    id: 'p', name: '50K eval', firm: 'Apex', stage: 'eval', status: 'active', startingBalance: 50000,
+    profitTarget: 3000, maxDrawdown: 2500, drawdownType: 'trailing', drawdownLockBalance: 50100, updatedAt: ''
+  }
+  // $2/pt * 1 contract, no fees: +1000 then -400
+  const t = (id: string, pts: number, day: string): Trade => ({
+    ...base, id, qty: 1, fees: 0, entryPrice: 21000, exitPrice: 21000 + pts, stopPrice: undefined,
+    entryTime: `${day}T14:00:00.000Z`, exitTime: `${day}T14:05:00.000Z`
+  })
+
+  it('trails drawdown off the balance high', () => {
+    const s = accountStatus(acct, [t('1', 500, '2026-10-20'), t('2', -200, '2026-10-21')], '2026-10-21')
+    expect(s.balance).toBe(50600)
+    expect(s.threshold).toBe(48500)
+    expect(s.room).toBe(2100)
+    expect(s.targetProgress).toBeCloseTo(0.2)
+    expect(s.todayPnl).toBe(-400)
+    expect(s.tradingDays).toBe(2)
+  })
+
+  it('locks the trailing threshold and uses fixed threshold for static', () => {
+    const big = accountStatus(acct, [t('1', 2000, '2026-10-20')])
+    expect(big.threshold).toBe(50100)
+    const st = accountStatus({ ...acct, drawdownType: 'static' }, [t('1', 2000, '2026-10-20')])
+    expect(st.threshold).toBe(47500)
+  })
+})

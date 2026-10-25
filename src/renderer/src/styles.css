@@ -45,3 +45,15 @@ tbody tr:hover { background: #1c2230; cursor: pointer; }
 .quote { margin-top: auto; padding: 8px; }
 .quote .price { font-size: 18px; }
 .small { font-size: 11px; }
+.accounts { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 12px; margin-bottom: 16px; }
+.account { cursor: pointer; display: flex; flex-direction: column; gap: 6px; margin: 0; }
+.account.breached { border-color: var(--neg); }
+.row { display: flex; align-items: center; gap: 8px; font-variant-numeric: tabular-nums; }
+.row.big { font-size: 20px; font-weight: 600; justify-content: space-between; }
+.bar { height: 6px; background: #21262d; border-radius: 3px; overflow: hidden; }
+.bar .fill { height: 100%; background: var(--pos); }
+.bar .fill.danger { background: var(--neg); }
+.badge { font-size: 11px; padding: 2px 8px; border-radius: 10px; background: #21262d; text-transform: capitalize; }
+.badge.passed { background: rgba(38, 166, 154, 0.2); color: var(--pos); }
+.badge.failed { background: rgba(239, 83, 80, 0.2); color: var(--neg); }
+.webview { flex: 1; width: 100%; border: 0; }

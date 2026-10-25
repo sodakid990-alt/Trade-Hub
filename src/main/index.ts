@@ -10,7 +10,7 @@ function createWindow() {
     minHeight: 640,
     backgroundColor: '#0e1117',
     title: 'Trading Hub',
-    webPreferences: { preload: join(__dirname, '../preload/index.js'), sandbox: true, contextIsolation: true }
+    webPreferences: { preload: join(__dirname, '../preload/index.js'), sandbox: true, contextIsolation: true, webviewTag: true }
   })
   win.webContents.setWindowOpenHandler(({ url }) => {
     shell.openExternal(url)
@@ -25,6 +25,18 @@ ipcMain.handle('notify', (_e, title: string, body: string) => {
 })
 
 ipcMain.handle('quote', () => fetchQuote())
+
+const TV_PARTITION = 'persist:tradingview'
+
+app.on('web-contents-created', (_e, contents) => {
+  // Only allow the TradingView webview, with no Node access.
+  contents.on('will-attach-webview', (event, prefs, params) => {
+    if (params.partition !== TV_PARTITION || !params.src.startsWith('https://www.tradingview.com/')) event.preventDefault()
+    delete prefs.preload
+    prefs.nodeIntegration = false
+    prefs.contextIsolation = true
+  })
+})
 
 app.whenReady().then(() => {
   createWindow()

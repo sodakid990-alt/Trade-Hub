@@ -14,6 +14,8 @@ export interface Trade {
   /** Broker-reported P&L, when imported. Otherwise computed from prices. */
   pnlOverride?: number
   setup?: string
+  /** Prop firm or personal account this trade was taken on. */
+  accountId?: string
   tags: string[]
   notes?: string
   updatedAt: string
@@ -39,4 +41,29 @@ export interface Bar {
   low: number
   close: number
   volume?: number
+}
+
+export type AccountStage = 'eval' | 'funded'
+export type AccountStatus = 'active' | 'passed' | 'failed' | 'closed'
+/** trailing: follows the highest balance; eod: follows end-of-day highs; static: fixed. */
+export type DrawdownType = 'trailing' | 'eod' | 'static'
+
+export interface PropAccount {
+  id: string
+  name: string
+  firm: string
+  stage: AccountStage
+  status: AccountStatus
+  startingBalance: number
+  profitTarget?: number
+  maxDrawdown: number
+  drawdownType: DrawdownType
+  /** Trailing drawdown stops moving once the threshold reaches this balance (often the starting balance). */
+  drawdownLockBalance?: number
+  dailyLossLimit?: number
+  minTradingDays?: number
+  /** One-off adjustments such as payouts (negative) or resets. */
+  adjustments?: number
+  updatedAt: string
+  deleted?: boolean
 }

@@ -1,17 +1,23 @@
 import Dexie, { type EntityTable } from 'dexie'
-import type { PriceAlert, Trade } from './types'
+import type { PriceAlert, PropAccount, Trade } from './types'
 
 /** Local-first store. Every write bumps updatedAt so sync can push it. */
 export const db = new Dexie('trading-hub') as Dexie & {
   trades: EntityTable<Trade, 'id'>
   alerts: EntityTable<PriceAlert, 'id'>
   meta: EntityTable<{ key: string; value: string }, 'key'>
+  accounts: EntityTable<PropAccount, 'id'>
 }
 
 db.version(1).stores({
   trades: 'id, exitTime, updatedAt, setup',
   alerts: 'id, updatedAt, active',
   meta: 'key'
+})
+
+db.version(2).stores({
+  trades: 'id, exitTime, updatedAt, setup, accountId',
+  accounts: 'id, updatedAt'
 })
 
 export const newId = () => crypto.randomUUID()
@@ -25,6 +31,14 @@ export async function deleteTrade(id: string) {
   await db.trades.update(id, { deleted: true, updatedAt: stamp() })
 }
 
+export async function saveAccount(a: PropAccount) {
+  await db.accounts.put({ ...a, updatedAt: stamp() })
+}
+
+export async function deleteAccount(id: string) {
+  await db.accounts.update(id, { deleted: true, updatedAt: stamp() })
+}
+
 export async function saveAlert(a: PriceAlert) {
   await db.alerts.put({ ...a, updatedAt: stamp() })
 }
@@ -34,7 +48,7 @@ export async function deleteAlert(id: string) {
 }
 
 /** Imports trades, keeping journal fields (setup, notes, tags, stop) on trades already imported. */
-export async function importTrades(trades: Trade[]): Promise<number> {
+export async function importTrades(trades: Trade[], accountId?: string): Promise<number> {
   let added = 0
   await db.transaction('rw', db.trades, async () => {
     for (const t of trades) {
@@ -42,8 +56,8 @@ export async function importTrades(trades: Trade[]): Promise<number> {
       if (!existing) added++
       await db.trades.put(
         existing
-          ? { ...t, setup: existing.setup, notes: existing.notes, tags: existing.tags, stopPrice: existing.stopPrice, updatedAt: stamp() }
-          : { ...t, updatedAt: stamp() }
+          ? { ...t, setup: existing.setup, notes: existing.notes, tags: existing.tags, stopPrice: existing.stopPrice, accountId: existing.accountId ?? accountId, updatedAt: stamp() }
+          : { ...t, accountId, updatedAt: stamp() }
       )
     }
   })
