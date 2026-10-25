@@ -11,7 +11,16 @@ const PATHS = {
   plus: 'M12 5v14M5 12h14',
   refresh: 'M20 11a8 8 0 1 0-2.3 5.7M20 4v7h-7',
   login: 'M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4M10 17l5-5-5-5M15 12H3',
-  trash: 'M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13'
+  trash: 'M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13',
+  home: 'M3 11l9-8 9 8M5 9.5V21h5v-6h4v6h5V9.5',
+  calendar: 'M4 5h16v16H4zM4 10h16M9 3v4M15 3v4',
+  book: 'M4 4h6a2 2 0 0 1 2 2v14a2 2 0 0 0-2-2H4zM20 4h-6a2 2 0 0 0-2 2v14a2 2 0 0 1 2-2h6z',
+  shield: 'M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z',
+  check: 'M5 12l5 5 9-10',
+  x: 'M6 6l12 12M18 6L6 18',
+  sun: 'M12 17a5 5 0 1 0 0-10 5 5 0 0 0 0 10zM12 1v2M12 21v2M4.2 4.2l1.4 1.4M18.4 18.4l1.4 1.4M1 12h2M21 12h2M4.2 19.8l1.4-1.4M18.4 5.6l1.4-1.4',
+  search: 'M11 18a7 7 0 1 0 0-14 7 7 0 0 0 0 14zM21 21l-5-5',
+  edit: 'M4 20h4L19 9l-4-4L4 16zM14 6l4 4'
 } as const
 
 export type IconName = keyof typeof PATHS

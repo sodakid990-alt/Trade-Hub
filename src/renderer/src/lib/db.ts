@@ -1,5 +1,5 @@
 import Dexie, { type EntityTable } from 'dexie'
-import type { PriceAlert, PropAccount, Trade } from './types'
+import type { DayNote, Prefs, PriceAlert, PropAccount, Setup, Trade } from './types'
 
 /** Local-first store. Every write bumps updatedAt so sync can push it. */
 export const db = new Dexie('trading-hub') as Dexie & {
@@ -7,6 +7,9 @@ export const db = new Dexie('trading-hub') as Dexie & {
   alerts: EntityTable<PriceAlert, 'id'>
   meta: EntityTable<{ key: string; value: string }, 'key'>
   accounts: EntityTable<PropAccount, 'id'>
+  days: EntityTable<DayNote, 'id'>
+  setups: EntityTable<Setup, 'id'>
+  prefs: EntityTable<Prefs, 'id'>
 }
 
 db.version(1).stores({
@@ -18,6 +21,12 @@ db.version(1).stores({
 db.version(2).stores({
   trades: 'id, exitTime, updatedAt, setup, accountId',
   accounts: 'id, updatedAt'
+})
+
+db.version(3).stores({
+  days: 'id, updatedAt',
+  setups: 'id, updatedAt, name',
+  prefs: 'id, updatedAt'
 })
 
 export const newId = () => crypto.randomUUID()
@@ -37,6 +46,22 @@ export async function saveAccount(a: PropAccount) {
 
 export async function deleteAccount(id: string) {
   await db.accounts.update(id, { deleted: true, updatedAt: stamp() })
+}
+
+export async function saveDay(d: DayNote) {
+  await db.days.put({ ...d, updatedAt: stamp() })
+}
+
+export async function saveSetup(s: Setup) {
+  await db.setups.put({ ...s, updatedAt: stamp() })
+}
+
+export async function deleteSetup(id: string) {
+  await db.setups.update(id, { deleted: true, updatedAt: stamp() })
+}
+
+export async function restoreTrade(id: string) {
+  await db.trades.update(id, { deleted: false, updatedAt: stamp() })
 }
 
 export async function saveAlert(a: PriceAlert) {

@@ -1,8 +1,11 @@
 import { useEffect, useState } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db, deleteAccount, newId, saveAccount, stamp } from '../lib/db'
+import { todayKey } from '../lib/analytics'
+import { useNav, useToast } from '../components/app'
 import { accountStatus } from '../lib/propAccounts'
-import type { PropAccount } from '../lib/types'
+import type { Payout, PropAccount } from '../lib/types'
+import { Icon } from '../components/Icon'
 import { pnlClass, usd } from '../components/format'
 import type { TradovateAccount } from '../../../preload'
 
@@ -16,6 +19,13 @@ export function AccountsPage() {
   const trades = useLiveQuery(() => db.trades.filter((t) => !t.deleted && !!t.accountId).toArray(), [])
   const [editing, setEditing] = useState<PropAccount | null>(null)
   const [showClosed, setShowClosed] = useState(false)
+  const { intent, clearIntent } = useNav()
+  useEffect(() => {
+    if (intent === 'add-account') {
+      setEditing(blank())
+      clearIntent()
+    }
+  }, [intent, clearIntent])
 
   const shown = (accounts ?? []).filter((a) => showClosed || a.status === 'active')
   const groups: [string, PropAccount[]][] = [
@@ -25,9 +35,9 @@ export function AccountsPage() {
   const totals = (accounts ?? []).filter((a) => a.stage === 'funded' && a.status === 'active').reduce(
     (acc, a) => {
       const s = accountStatus(a, (trades ?? []).filter((t) => t.accountId === a.id))
-      return { profit: acc.profit + s.profit, room: acc.room + s.room }
+      return { profit: acc.profit + s.profit, room: acc.room + s.room, paid: acc.paid + s.paidOut }
     },
-    { profit: 0, room: 0 }
+    { profit: 0, room: 0, paid: 0 }
   )
 
   return (
@@ -48,6 +58,7 @@ export function AccountsPage() {
         <div className="card stat"><div className="muted">Active evals</div><div className="value">{(accounts ?? []).filter((a) => a.stage === 'eval' && a.status === 'active').length}</div></div>
         <div className="card stat"><div className="muted">Funded profit</div><div className={`value ${pnlClass(totals.profit)}`}>{usd(totals.profit)}</div></div>
         <div className="card stat"><div className="muted">Funded drawdown room</div><div className="value">{usd(totals.room)}</div></div>
+        <div className="card stat"><div className="muted">Total paid out</div><div className={`value ${totals.paid > 0 ? 'pos' : ''}`}>{usd(totals.paid)}</div></div>
       </div>
       {groups.map(([title, list]) =>
         list.length ? (
@@ -94,6 +105,7 @@ function AccountCard({ account: a, trades, onEdit }: { account: PropAccount; tra
       )}
       <div className="row muted"><span>Drawdown room ({a.drawdownType})</span><div className="spacer" /><span>{usd(s.room)} · breach at {usd(s.threshold)}</span></div>
       <Bar value={roomPct} danger={roomPct < 0.3} />
+      {s.paidOut > 0 && <div className="row muted"><span>Paid out</span><div className="spacer" /><span className="pos">{usd(s.paidOut)}</span></div>}
       <div className="row muted">
         <span>Today {usd(s.todayPnl)}{s.dailyRoom !== undefined && ` · ${usd(s.dailyRoom)} left today`}</span>
         <div className="spacer" />
@@ -105,6 +117,9 @@ function AccountCard({ account: a, trades, onEdit }: { account: PropAccount; tra
 
 function AccountForm({ account, onClose }: { account: PropAccount; onClose: () => void }) {
   const [a, setA] = useState(account)
+  const [confirming, setConfirming] = useState(false)
+  const toast = useToast()
+  const isNew = !account.name && !account.firm
   const set = <K extends keyof PropAccount>(k: K, v: PropAccount[K]) => setA({ ...a, [k]: v })
   const money = (k: 'startingBalance' | 'maxDrawdown') => (
     <input type="number" value={a[k]} onChange={(e) => set(k, parseFloat(e.target.value) || 0)} />
@@ -113,7 +128,7 @@ function AccountForm({ account, onClose }: { account: PropAccount; onClose: () =
     <input type="number" value={a[k] ?? ''} onChange={(e) => set(k, e.target.value === '' ? undefined : parseFloat(e.target.value))} />
   )
   return (
-    <form className="card form" onSubmit={async (e) => { e.preventDefault(); await saveAccount(a); onClose() }}>
+    <form className="card form" onSubmit={async (e) => { e.preventDefault(); await saveAccount(a); onClose(); toast(isNew ? 'Account added' : 'Account saved') }}>
       <label>Name<input value={a.name} placeholder="e.g. Apex 50K #3" onChange={(e) => set('name', e.target.value)} /></label>
       <label>Firm<input value={a.firm} placeholder="Apex, Topstep, MFFU..." onChange={(e) => set('firm', e.target.value)} /></label>
       <label>Type
@@ -137,10 +152,19 @@ function AccountForm({ account, onClose }: { account: PropAccount; onClose: () =
       <label>Trailing stops at balance{optional('drawdownLockBalance')}</label>
       <label>Daily loss limit{optional('dailyLossLimit')}</label>
       <label>Min trading days{optional('minTradingDays')}</label>
-      <label>Payouts / adjustments{optional('adjustments')}</label>
+      <label>Balance adjustment <span className="hint">resets etc.</span>{optional('adjustments')}</label>
+      {a.stage === 'funded' && <PayoutEditor payouts={a.payouts ?? []} onChange={(payouts) => setA({ ...a, payouts })} />}
       <TradovateLink value={a.tradovateAccountId} onChange={(id) => setA({ ...a, tradovateAccountId: id, brokerBalance: id === undefined ? undefined : a.brokerBalance })} />
       <div className="wide actions">
-        <button type="button" className="link" onClick={async () => { await deleteAccount(a.id); onClose() }}>Delete</button>
+        {!isNew && (confirming ? (
+          <span className="row gap">
+            <span className="muted small">Delete this account? Its trades stay in your journal.</span>
+            <button type="button" className="danger-btn" onClick={async () => { await deleteAccount(a.id); onClose(); toast(`Deleted ${a.name || a.firm}`, { label: 'Undo', run: () => saveAccount({ ...a, deleted: false }) }) }}>Delete</button>
+            <button type="button" className="link" onClick={() => setConfirming(false)}>Keep</button>
+          </span>
+        ) : (
+          <button type="button" className="link danger" onClick={() => setConfirming(true)}>Delete account</button>
+        ))}
         <div className="spacer" />
         <button type="button" className="ghost" onClick={onClose}>Cancel</button>
         <button type="submit" className="primary">Save</button>
@@ -165,5 +189,33 @@ function TradovateLink({ value, onChange }: { value?: number; onChange: (id?: nu
         {accounts.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
       </select>
     </label>
+  )
+}
+
+function PayoutEditor({ payouts, onChange }: { payouts: Payout[]; onChange: (p: Payout[]) => void }) {
+  const [amount, setAmount] = useState('')
+  const [date, setDate] = useState(todayKey())
+  const total = payouts.reduce((s, p) => s + p.amount, 0)
+  return (
+    <div className="wide payouts">
+      <div className="row">
+        <span className="field-label">Payouts</span>
+        <div className="spacer" />
+        {total > 0 && <span className="muted small">{payouts.length} payout{payouts.length === 1 ? '' : 's'} · <span className="pos">{usd(total)}</span> total</span>}
+      </div>
+      {payouts.map((p, i) => (
+        <div key={i} className="row payout-row">
+          <span>{new Date(p.date + 'T12:00:00').toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' })}</span>
+          <div className="spacer" />
+          <span className="pos">{usd(p.amount)}</span>
+          <button type="button" className="icon-btn" onClick={() => onChange(payouts.filter((_, j) => j !== i))} title="Remove"><Icon name="x" size={13} /></button>
+        </div>
+      ))}
+      <div className="row gap">
+        <input type="date" value={date} onChange={(e) => setDate(e.target.value)} />
+        <input type="number" min={0} placeholder="Amount" value={amount} onChange={(e) => setAmount(e.target.value)} />
+        <button type="button" className="ghost" disabled={!Number(amount)} onClick={() => { onChange([...payouts, { date, amount: Number(amount) }].sort((x, y) => x.date.localeCompare(y.date))); setAmount('') }}>Add payout</button>
+      </div>
+    </div>
   )
 }

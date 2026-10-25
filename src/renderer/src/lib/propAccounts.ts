@@ -12,6 +12,7 @@ export interface AccountStatusView {
   todayPnl: number
   dailyRoom?: number
   tradingDays: number
+  paidOut: number
   breached: boolean
   targetHit: boolean
 }
@@ -34,6 +35,8 @@ export function accountStatus(account: PropAccount, trades: Trade[], today = byD
     balance += pnl
     if (account.drawdownType === 'trailing') peak = Math.max(peak, balance)
   }
+  // Payouts leave the account; a linked broker's balance already reflects them.
+  balance -= (account.payouts ?? []).reduce((sum, p) => sum + p.amount, 0)
   // A linked broker's balance is authoritative (it includes fees and anything not journaled).
   if (account.brokerBalance !== undefined) {
     balance = account.brokerBalance
@@ -60,6 +63,7 @@ export function accountStatus(account: PropAccount, trades: Trade[], today = byD
     todayPnl,
     dailyRoom: account.dailyLossLimit !== undefined ? account.dailyLossLimit + todayPnl : undefined,
     tradingDays: daily.size,
+    paidOut: (account.payouts ?? []).reduce((sum, p) => sum + p.amount, 0),
     breached: balance <= threshold,
     targetHit: account.profitTarget !== undefined && profit >= account.profitTarget
   }

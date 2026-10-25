@@ -1,20 +1,182 @@
 import { useEffect, useState } from 'react'
+import { useLiveQuery } from 'dexie-react-hooks'
 import type { User } from '@supabase/supabase-js'
 import type { TradovateAccount, TradovateCreds } from '../../../preload'
 import { supabase, syncNow } from '../lib/sync'
+import { db } from '../lib/db'
+import { ACCENTS, DEFAULT_TAGS, PAGE_NAMES, updatePrefs, usePrefs } from '../lib/prefs'
+import type { PageName, Prefs } from '../lib/types'
+import { Icon } from '../components/Icon'
+import { useToast } from '../components/app'
+
+const SECTIONS = ['Appearance', 'Trading', 'Rules', 'Sync', 'Tradovate'] as const
 
 export function SettingsPage() {
+  const [section, setSection] = useState<(typeof SECTIONS)[number]>('Appearance')
   return (
     <div className="page narrow">
       <header className="page-header">
         <div>
           <h1>Settings</h1>
-          <p className="muted">Sync between your computers and your broker connection.</p>
+          <p className="muted">Make the app work the way you trade. Changes save automatically and sync to your other computer.</p>
         </div>
       </header>
-      <SyncSettings />
-      <TradovateSettings />
+      <div className="tabs">
+        {SECTIONS.map((s) => (
+          <button key={s} className={`tab ${s === section ? 'active' : ''}`} onClick={() => setSection(s)}>{s}</button>
+        ))}
+      </div>
+      {section === 'Appearance' && <AppearanceSettings />}
+      {section === 'Trading' && <TradingSettings />}
+      {section === 'Rules' && <RulesSettings />}
+      {section === 'Sync' && <SyncSettings />}
+      {section === 'Tradovate' && <TradovateSettings />}
     </div>
+  )
+}
+
+function Field({ label, hint, children }: { label: string; hint?: string; children: React.ReactNode }) {
+  return (
+    <div className="setting">
+      <div>
+        <div className="setting-label">{label}</div>
+        {hint && <div className="muted small">{hint}</div>}
+      </div>
+      <div className="setting-control">{children}</div>
+    </div>
+  )
+}
+
+function Segmented<T extends string>({ value, options, onChange }: { value: T; options: [T, string][]; onChange: (v: T) => void }) {
+  return (
+    <div className="segmented">
+      {options.map(([v, label]) => (
+        <button type="button" key={v} className={value === v ? 'active' : ''} onClick={() => onChange(v)}>{label}</button>
+      ))}
+    </div>
+  )
+}
+
+function AppearanceSettings() {
+  const prefs = usePrefs()
+  const togglePage = (p: PageName) =>
+    updatePrefs({ hiddenPages: prefs.hiddenPages.includes(p) ? prefs.hiddenPages.filter((x) => x !== p) : [...prefs.hiddenPages, p] })
+  return (
+    <>
+      <section className="card">
+        <Field label="Theme">
+          <Segmented value={prefs.theme} options={[['dark', 'Dark'], ['light', 'Light'], ['system', 'Match computer']]} onChange={(theme) => updatePrefs({ theme })} />
+        </Field>
+        <Field label="Accent color">
+          <div className="swatches">
+            {ACCENTS.map((c) => (
+              <button key={c} className={`swatch ${prefs.accent === c ? 'active' : ''}`} style={{ background: c }} onClick={() => updatePrefs({ accent: c })} title={c} />
+            ))}
+            <input type="color" value={prefs.accent} onChange={(e) => updatePrefs({ accent: e.target.value })} title="Pick any color" />
+          </div>
+        </Field>
+        <Field label="Compact mode" hint="Tighter spacing to fit more trades on screen.">
+          <label className="switch"><input type="checkbox" checked={prefs.compact} onChange={(e) => updatePrefs({ compact: e.target.checked })} /><span /></label>
+        </Field>
+        <Field label="Open the app on">
+          <select value={prefs.startPage} onChange={(e) => updatePrefs({ startPage: e.target.value as PageName })}>
+            {PAGE_NAMES.filter((p) => !prefs.hiddenPages.includes(p)).map((p) => <option key={p}>{p}</option>)}
+          </select>
+        </Field>
+      </section>
+      <section className="card">
+        <h3>Pages in the sidebar</h3>
+        <p className="muted small">Hide the ones you don't use. Settings always stays.</p>
+        <div className="chips">
+          {PAGE_NAMES.filter((p) => p !== 'Settings').map((p) => (
+            <button key={p} className={`chip ${prefs.hiddenPages.includes(p) ? '' : 'active'}`} onClick={() => togglePage(p)} disabled={p === prefs.startPage && !prefs.hiddenPages.includes(p)} title={p === prefs.startPage ? 'This is your start page' : ''}>
+              {prefs.hiddenPages.includes(p) ? '' : '✓ '}{p}
+            </button>
+          ))}
+        </div>
+      </section>
+      {!prefs.onboardingDone ? null : (
+        <p className="muted small">
+          <button className="link" onClick={() => updatePrefs({ onboardingDone: false })}>Show the getting-started steps on Home again</button>
+        </p>
+      )}
+    </>
+  )
+}
+
+function NumberSetting({ value, onChange, prefix, step = 1, placeholder }: { value: number; onChange: (n: number) => void; prefix?: string; step?: number; placeholder?: string }) {
+  const [text, setText] = useState(value ? String(value) : '')
+  useEffect(() => setText(value ? String(value) : ''), [value])
+  return (
+    <div className="input-prefix">
+      {prefix && <span>{prefix}</span>}
+      <input type="number" min={0} step={step} value={text} placeholder={placeholder ?? '0'} onChange={(e) => setText(e.target.value)} onBlur={() => onChange(Number(text) || 0)} />
+    </div>
+  )
+}
+
+function TradingSettings() {
+  const prefs = usePrefs()
+  const toast = useToast()
+  const accounts = useLiveQuery(() => db.accounts.filter((a) => !a.deleted && a.status === 'active').toArray(), []) ?? []
+  const [newTag, setNewTag] = useState('')
+  const addTag = () => {
+    const tag = newTag.trim()
+    if (tag && !prefs.tags.includes(tag)) updatePrefs({ tags: [...prefs.tags, tag] })
+    setNewTag('')
+  }
+  return (
+    <>
+      <section className="card">
+        <Field label="Default contract" hint="Used for new trades.">
+          <select value={prefs.defaultSymbol} onChange={(e) => updatePrefs({ defaultSymbol: e.target.value })}>
+            {['MNQ', 'NQ', 'MES', 'ES'].map((s) => <option key={s}>{s}</option>)}
+          </select>
+        </Field>
+        <Field label="Default account" hint="New and imported trades go here unless you pick another.">
+          <select value={prefs.defaultAccountId ?? ''} onChange={(e) => updatePrefs({ defaultAccountId: e.target.value || undefined })}>
+            <option value="">None</option>
+            {accounts.map((a) => <option key={a.id} value={a.id}>{a.name || a.firm}</option>)}
+          </select>
+        </Field>
+        <Field label="Commission per contract, per side" hint="Added to every new trade automatically. For example $0.62 per side is $1.24 per round trip on MNQ.">
+          <NumberSetting prefix="$" step={0.01} value={prefs.commissionPerSide} onChange={(commissionPerSide) => { updatePrefs({ commissionPerSide }); toast('Commission saved') }} />
+        </Field>
+      </section>
+      <section className="card">
+        <h3>Tags</h3>
+        <p className="muted small">Quick-pick tags for your trades. Mistake tags like FOMO show up in Analysis with what they cost you.</p>
+        <div className="chips">
+          {prefs.tags.map((tag) => (
+            <span key={tag} className="chip active removable">
+              {tag}
+              <button onClick={() => updatePrefs({ tags: prefs.tags.filter((t) => t !== tag) })} title="Remove"><Icon name="x" size={11} /></button>
+            </span>
+          ))}
+          <input className="chip-input" value={newTag} placeholder="+ Add tag" onChange={(e) => setNewTag(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') addTag() }} onBlur={addTag} />
+        </div>
+        {prefs.tags.length === 0 && <button className="link" onClick={() => updatePrefs({ tags: DEFAULT_TAGS })}>Restore the suggested tags</button>}
+      </section>
+    </>
+  )
+}
+
+function RulesSettings() {
+  const prefs = usePrefs()
+  return (
+    <section className="card">
+      <p className="muted">The app warns you on Home and with a desktop notification when you get close to a limit, and tells you to stop when you hit it. Prop account limits come from each account's settings.</p>
+      <Field label="My daily max loss" hint="Across all accounts. Leave at 0 to turn off.">
+        <NumberSetting prefix="$" value={prefs.dailyMaxLoss} onChange={(dailyMaxLoss) => updatePrefs({ dailyMaxLoss })} />
+      </Field>
+      <Field label="Warn me at" hint="How much of a limit can be used before the warning.">
+        <Segmented<string>
+          value={String(prefs.warnAt)}
+          options={[['0.5', '50%'], ['0.75', '75%'], ['0.9', '90%']]}
+          onChange={(v) => updatePrefs({ warnAt: Number(v) as Prefs['warnAt'] })}
+        />
+      </Field>
+    </section>
   )
 }
 
@@ -34,7 +196,6 @@ function SyncSettings() {
   if (!supabase)
     return (
       <section className="card">
-        <h3>Sync</h3>
         <p className="muted">Sync isn't configured in this build. Your data is saved on this computer.</p>
       </section>
     )
@@ -47,7 +208,6 @@ function SyncSettings() {
 
   return (
     <section className="card">
-      <h3>Sync</h3>
       {user ? (
         <>
           <p>Signed in as <strong>{user.email}</strong>. Sign in with the same account on your other computer to keep both in sync.</p>
@@ -116,7 +276,6 @@ function TradovateSettings() {
 
   return (
     <section className="card">
-      <h3>Tradovate connection</h3>
       <p className="muted">
         Pulls your fills and balances automatically every minute, so your journal and account cards stay current.
         Needs an API key from Tradovate (log in, then Settings, then API Access). Credentials are encrypted and stay on this computer.

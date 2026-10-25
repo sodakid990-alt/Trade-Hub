@@ -62,8 +62,10 @@ export interface PropAccount {
   drawdownLockBalance?: number
   dailyLossLimit?: number
   minTradingDays?: number
-  /** One-off adjustments such as payouts (negative) or resets. */
+  /** One-off adjustments such as resets. */
   adjustments?: number
+  /** Withdrawals from a funded account; they reduce the balance. */
+  payouts?: Payout[]
   /** Linked Tradovate account; its fills and balance sync automatically. */
   tradovateAccountId?: number
   /** Last cash balance reported by the broker. */
@@ -71,4 +73,57 @@ export interface PropAccount {
   brokerSyncedAt?: string
   updatedAt: string
   deleted?: boolean
+}
+
+export interface Payout {
+  date: string // YYYY-MM-DD
+  amount: number
+}
+
+/** A trading day's plan and review, keyed by date (YYYY-MM-DD in New York time). */
+export interface DayNote {
+  id: string
+  bias?: 'bullish' | 'bearish' | 'neutral'
+  levels?: string
+  maxLoss?: number
+  plan?: string
+  grade?: 'A' | 'B' | 'C' | 'D' | 'F'
+  wentWell?: string
+  improve?: string
+  updatedAt: string
+  deleted?: boolean
+}
+
+/** A playbook setup: what it is and the rules for taking it. */
+export interface Setup {
+  id: string
+  name: string
+  description?: string
+  rules: string[]
+  color: string
+  updatedAt: string
+  deleted?: boolean
+}
+
+export type PageName = 'Home' | 'Chart' | 'Journal' | 'Daily' | 'Analysis' | 'Playbook' | 'Accounts' | 'Alerts' | 'Settings'
+
+/** User preferences. One record (id "prefs"), synced so both computers match. */
+export interface Prefs {
+  id: 'prefs'
+  theme: 'dark' | 'light' | 'system'
+  accent: string
+  compact: boolean
+  startPage: PageName
+  hiddenPages: PageName[]
+  defaultSymbol: string
+  defaultAccountId?: string
+  /** Commission + fees per contract per side, added to new trades automatically. */
+  commissionPerSide: number
+  tags: string[]
+  /** Personal max loss for a day across all accounts; 0 = off. */
+  dailyMaxLoss: number
+  /** Warn when this share of a loss limit or drawdown is used, e.g. 0.75. */
+  warnAt: number
+  onboardingDone: boolean
+  updatedAt: string
 }

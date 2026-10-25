@@ -1,6 +1,7 @@
 import type { TradovateSnapshot } from '../../../main/tradovate'
 import { db, importTrades, stamp } from './db'
 import type { PropAccount, Trade } from './types'
+import { DEFAULT_PREFS, withDefaultFees } from './prefs'
 
 /**
  * Turns Tradovate's matched round trips into journal trades. Ids match the
@@ -37,7 +38,8 @@ export async function syncTradovate(): Promise<string> {
   if (!window.hub) return ''
   const snap = await window.hub.tradovate.snapshot()
   const linked = (await db.accounts.filter((a) => !a.deleted && a.tradovateAccountId !== undefined).toArray()) as PropAccount[]
-  const trades = pairsToTrades(snap)
+  const prefs = { ...DEFAULT_PREFS, ...(await db.prefs.get('prefs')) }
+  const trades = withDefaultFees(pairsToTrades(snap), prefs)
   let added = 0
   for (const account of linked) {
     const mine = trades.filter((t) => t.brokerAccountId === account.tradovateAccountId).map(({ brokerAccountId: _, ...t }) => t)

@@ -120,3 +120,6 @@ export function dailyPnl(trades: Trade[]): Map<string, number> {
   for (const t of trades) out.set(byDay(t), (out.get(byDay(t)) ?? 0) + netPnl(t))
   return out
 }
+
+/** Today's trading-day key (New York date), matching byDay. */
+export const todayKey = () => byDay({ exitTime: new Date().toISOString() } as Trade)

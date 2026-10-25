@@ -175,3 +175,26 @@ describe('tradovate sync', () => {
     expect(accountStatus(acct, []).room).toBe(2120)
   })
 })
+
+import { guardrails } from './guardrails'
+import { DEFAULT_PREFS, withDefaultFees } from './prefs'
+
+describe('guardrails', () => {
+  const acct = { id: 'g', name: 'Eval', firm: 'Lucid', stage: 'eval' as const, status: 'active' as const, startingBalance: 50000, maxDrawdown: 1000, drawdownType: 'static' as const, dailyLossLimit: 400, updatedAt: '' }
+  const loss = (id: string, pts: number): Trade => ({ ...base, id, qty: 1, fees: 0, stopPrice: undefined, exitPrice: 21000 + pts, accountId: 'g', exitTime: '2026-10-23T15:00:00Z' })
+  const day = () => '2026-10-23'
+
+  it('warns near and stops at the limits', () => {
+    const prefs = { ...DEFAULT_PREFS, dailyMaxLoss: 500 }
+    const g = guardrails([loss('a', -160)], [acct], prefs, '2026-10-23', day) // -$320
+    expect(g.map((x) => [x.key, x.level])).toEqual([['personal', 'ok'], ['g-daily', 'warn'], ['g-dd', 'ok']])
+    const g2 = guardrails([loss('a', -200), loss('b', -100)], [acct], prefs, '2026-10-23', day) // -$600
+    expect(g2.map((x) => x.level)).toEqual(['stop', 'stop', 'ok'])
+  })
+
+  it('fills default fees only where missing', () => {
+    const [a, b] = withDefaultFees([{ ...base, qty: 2, fees: 0 }, { ...base, fees: 3 }], { commissionPerSide: 0.62 })
+    expect(a.fees).toBe(2.48)
+    expect(b.fees).toBe(3)
+  })
+})
