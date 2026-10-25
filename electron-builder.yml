@@ -13,3 +13,4 @@ mac:
     - target: dmg
       arch: [arm64, x64]
   category: public.app-category.finance
+  identity: null

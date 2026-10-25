@@ -12,6 +12,14 @@ npm run dist:win   # Windows installer -> dist/
 npm run dist:mac   # macOS .dmg -> dist/ (build on a Mac)
 ```
 
+## Downloading the app
+
+Every push to `main` builds a Windows installer and a Mac `.dmg` on GitHub Actions. Open the repo's **Actions** tab, click the latest "Build installers" run, and download `trading-hub-win` or `trading-hub-mac` under Artifacts.
+
+The app isn't code-signed yet, so the first launch needs one extra click:
+- **Windows:** on the SmartScreen warning, click "More info" then "Run anyway".
+- **Mac:** right-click the app in Applications, choose Open, then Open again. If macOS says the app is damaged, run `xattr -cr "/Applications/Trading Hub.app"` in Terminal.
+
 ## Features
 
 - **Chart:** the full TradingView site in an embedded browser, opened on `CME_MINI:MNQ1!`. Sign in with your TradingView account (email/username) and your real-time data, layouts, indicators and TradingView alerts carry over. The login persists between launches.
@@ -25,5 +33,5 @@ npm run dist:mac   # macOS .dmg -> dist/ (build on a Mac)
 
 1. Create a free project at supabase.com.
 2. Run `supabase/schema.sql` in its SQL editor.
-3. Copy `.env.example` to `.env` and fill in the project URL and anon key, then build.
+3. Add the project URL and anon key as repository secrets `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` (Settings > Secrets and variables > Actions) so the installers include them. For local builds, copy `.env.example` to `.env` instead.
 4. Sign in on the Sync page with the same account on each computer.
