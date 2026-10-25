@@ -43,6 +43,6 @@ export function toTradeDraft(x: ExtractedTrade, accountId?: string): Trade {
 export async function readTradesFromScreenshot(file: File, accountId?: string): Promise<Trade[]> {
   if (!window.hub) throw new Error('Screenshot reading needs the desktop app.')
   if (!isSupportedImage(file)) throw new Error('Use a PNG, JPG, WebP or GIF screenshot.')
-  const extracted = await window.hub.extractTrades(await toBase64(file), file.type as ImageType)
+  const extracted = await window.hub.extractTrades(await toBase64(file))
   return extracted.map((x) => toTradeDraft(x, accountId))
 }

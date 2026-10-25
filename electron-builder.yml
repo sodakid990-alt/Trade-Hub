@@ -14,3 +14,8 @@ mac:
       arch: [arm64, x64]
   category: public.app-category.finance
   identity: null
+# OCR runs in a worker thread that loads these from disk, so keep them outside the asar archive.
+asarUnpack:
+  - node_modules/tesseract.js/**
+  - node_modules/tesseract.js-core/**
+  - node_modules/@tesseract.js-data/**

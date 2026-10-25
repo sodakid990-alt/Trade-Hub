@@ -9,12 +9,11 @@ export function SettingsPage() {
       <header className="page-header">
         <div>
           <h1>Settings</h1>
-          <p className="muted">Sync, broker connection and screenshot reading.</p>
+          <p className="muted">Sync between your computers and your broker connection.</p>
         </div>
       </header>
       <SyncSettings />
       <TradovateSettings />
-      <ApiKeySettings />
     </div>
   )
 }
@@ -69,41 +68,6 @@ function SyncSettings() {
         </form>
       )}
       {msg && <p className="muted">{msg}</p>}
-    </section>
-  )
-}
-
-function ApiKeySettings() {
-  const [hasKey, setHasKey] = useState<boolean>()
-  const [key, setKey] = useState('')
-  useEffect(() => {
-    window.hub?.hasApiKey().then(setHasKey)
-  }, [])
-
-  const save = async (value: string) => {
-    await window.hub?.setApiKey(value)
-    setHasKey(!!value)
-    setKey('')
-  }
-
-  return (
-    <section className="card">
-      <h3>Screenshot reading</h3>
-      <p className="muted">
-        Fill in trades from a screenshot using Claude. Needs an Anthropic API key from console.anthropic.com (pay as you go, about a cent or two per screenshot).
-        The key is encrypted and stays on this computer; it isn't synced, so add it on each computer.
-      </p>
-      {hasKey ? (
-        <div className="row gap">
-          <span className="badge passed">Key saved</span>
-          <button className="ghost" onClick={() => save('')}>Remove key</button>
-        </div>
-      ) : (
-        <form className="row gap" onSubmit={(e) => { e.preventDefault(); if (key.trim()) save(key.trim()) }}>
-          <input type="password" placeholder="sk-ant-..." value={key} onChange={(e) => setKey(e.target.value)} style={{ flex: 1 }} />
-          <button className="primary" type="submit">Save key</button>
-        </form>
-      )}
     </section>
   )
 }

@@ -34,9 +34,9 @@ export function JournalPage() {
       setStatus({ kind: 'busy', text: 'Reading screenshot…' })
       try {
         const found = await readTradesFromScreenshot(file, account || undefined)
-        if (!found.length) return setStatus({ kind: 'error', text: "Couldn't find a completed trade in that screenshot." })
+        if (!found.length) return setStatus({ kind: 'error', text: "Couldn't read a trade from that screenshot. Try a tighter crop of the fills or Performance tab, or add it by hand." })
         setDrafts(found)
-        setStatus({ kind: 'info', text: `Found ${found.length} trade${found.length > 1 ? 's' : ''}. Check the details, then save.` })
+        setStatus({ kind: 'info', text: `Found ${found.length} trade${found.length > 1 ? 's' : ''}. Double-check the numbers, then save.` })
       } catch (e) {
         setStatus({ kind: 'error', text: (e as Error).message.replace(/^Error invoking remote method '[^']+': (Error: )?/, '') })
       }
@@ -103,7 +103,7 @@ export function JournalPage() {
         <Icon name="image" size={22} />
         <div>
           <strong>{status?.kind === 'busy' ? 'Reading screenshot…' : 'Add a trade from a screenshot'}</strong>
-          <div className="muted small">Drop an image here, paste with {navigator.platform.startsWith('Mac') ? '⌘' : 'Ctrl'}+V, or click to choose. Works with Tradovate, NinjaTrader, Rithmic and TradingView.</div>
+          <div className="muted small">Drop an image here, paste with {navigator.platform.startsWith('Mac') ? '⌘' : 'Ctrl'}+V, or click to choose. Read on this computer for free. Clear, uncropped screenshots of your fills or Performance tab work best.</div>
         </div>
         <input type="file" accept="image/png,image/jpeg,image/webp,image/gif" hidden onChange={(e) => { if (e.target.files?.[0]) onScreenshot(e.target.files[0]); e.target.value = '' }} />
       </label>

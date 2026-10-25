@@ -15,6 +15,3 @@ export function getSecret(name: string): string | null {
   if (!existsSync(secretFile(name))) return null
   return safeStorage.decryptString(readFileSync(secretFile(name)))
 }
-
-export const setApiKey = (key: string) => setSecret('anthropic-key', key.trim() || null)
-export const getApiKey = () => getSecret('anthropic-key')

@@ -1,8 +1,7 @@
 import { app, BrowserWindow, ipcMain, Notification, shell } from 'electron'
 import { join } from 'node:path'
-import { extractTrades } from './extractTrade'
 import { fetchQuote } from './quote'
-import { getApiKey, setApiKey } from './secrets'
+import { readTradesFromImage } from './ocr'
 import { listAccounts, loadCreds, saveCreds, snapshot, type TradovateCreds } from './tradovate'
 import { openTradingViewLogin, prepareTradingViewSession, TV_PARTITION } from './tradingviewLogin'
 
@@ -30,13 +29,7 @@ ipcMain.handle('notify', (_e, title: string, body: string) => {
 
 ipcMain.handle('quote', () => fetchQuote())
 
-ipcMain.handle('has-api-key', () => getApiKey() !== null)
-ipcMain.handle('set-api-key', (_e, key: string) => setApiKey(key))
-ipcMain.handle('extract-trades', (_e, imageBase64: string, mediaType: Parameters<typeof extractTrades>[2]) => {
-  const key = getApiKey()
-  if (!key) throw new Error('Add your Anthropic API key in Settings first.')
-  return extractTrades(key, imageBase64, mediaType)
-})
+ipcMain.handle('extract-trades', async (_e, imageBase64: string) => (await readTradesFromImage(imageBase64)).trades)
 
 ipcMain.handle('tradovate:status', () => {
   const c = loadCreds()
