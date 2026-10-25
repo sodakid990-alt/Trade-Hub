@@ -1,0 +1,15 @@
+appId: com.tradinghub.app
+productName: Trading Hub
+directories:
+  output: dist
+  buildResources: build
+files:
+  - out/**
+  - package.json
+win:
+  target: nsis
+mac:
+  target:
+    - target: dmg
+      arch: [arm64, x64]
+  category: public.app-category.finance
