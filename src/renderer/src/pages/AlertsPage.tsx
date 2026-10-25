@@ -20,7 +20,7 @@ export function AlertsPage() {
 
   return (
     <div className="page">
-      <header className="toolbar"><h2>Alerts</h2></header>
+      <header className="page-header"><div><h1>Alerts</h1><p className="muted">Desktop notifications when MNQ crosses your levels</p></div></header>
       <form className="card inline" onSubmit={add}>
         <span>MNQ crosses</span>
         <select value={direction} onChange={(e) => setDirection(e.target.value as PriceAlert['direction'])}>

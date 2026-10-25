@@ -127,3 +127,16 @@ describe('prop accounts', () => {
     expect(st.threshold).toBe(47500)
   })
 })
+
+import { toTradeDraft } from './screenshot'
+
+describe('screenshot drafts', () => {
+  it('turns an extracted trade into a journal draft', () => {
+    const d = toTradeDraft({ symbol: 'mnqz6', side: 'short', qty: 2, entryPrice: 21010, exitPrice: 21000, stopPrice: null, entryTime: '2026-10-23T09:31:00', exitTime: null, fees: 1.24, pnl: 40 }, 'acct')
+    expect(d.symbol).toBe('MNQZ6')
+    expect(d.exitTime).toBe(d.entryTime)
+    expect(d.stopPrice).toBeUndefined()
+    expect(netPnl(d)).toBeCloseTo(38.76)
+    expect(d.accountId).toBe('acct')
+  })
+})

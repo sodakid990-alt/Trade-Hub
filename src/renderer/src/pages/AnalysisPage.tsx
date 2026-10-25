@@ -22,7 +22,7 @@ export function AnalysisPage() {
   ]
   return (
     <div className="page">
-      <header className="toolbar"><h2>Analysis</h2></header>
+      <header className="page-header"><div><h1>Analysis</h1><p className="muted">Performance across {s.trades} trades</p></div></header>
       <div className="stats">
         {stats.map(([label, value, sign]) => (
           <div key={label} className="card stat">

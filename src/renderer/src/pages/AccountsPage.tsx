@@ -31,11 +31,15 @@ export function AccountsPage() {
 
   return (
     <div className="page">
-      <header className="toolbar">
-        <h2>Accounts</h2>
-        <div className="spacer" />
+      <header className="page-header">
+        <div>
+          <h1>Accounts</h1>
+          <p className="muted">Prop firm evaluations and funded accounts</p>
+        </div>
+        <div className="row gap">
         <label className="muted"><input type="checkbox" checked={showClosed} onChange={(e) => setShowClosed(e.target.checked)} /> Show closed</label>
-        <button onClick={() => setEditing(blank())}>Add account</button>
+        <button className="primary" onClick={() => setEditing(blank())}>Add account</button>
+        </div>
       </header>
       {editing && <AccountForm account={editing} onClose={() => setEditing(null)} />}
       <div className="stats">
@@ -47,7 +51,7 @@ export function AccountsPage() {
       {groups.map(([title, list]) =>
         list.length ? (
           <section key={title}>
-            <h3>{title}</h3>
+            <h3 className="section-title">{title}</h3>
             <div className="accounts">
               {list.map((a) => (
                 <AccountCard key={a.id} account={a} trades={(trades ?? []).filter((t) => t.accountId === a.id)} onEdit={() => setEditing(a)} />
@@ -135,7 +139,7 @@ function AccountForm({ account, onClose }: { account: PropAccount; onClose: () =
       <div className="wide actions">
         <button type="button" className="link" onClick={async () => { await deleteAccount(a.id); onClose() }}>Delete</button>
         <div className="spacer" />
-        <button type="button" onClick={onClose}>Cancel</button>
+        <button type="button" className="ghost" onClick={onClose}>Cancel</button>
         <button type="submit" className="primary">Save</button>
       </div>
     </form>

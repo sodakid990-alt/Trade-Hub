@@ -22,8 +22,8 @@ The app isn't code-signed yet, so the first launch needs one extra click:
 
 ## Features
 
-- **Chart:** the full TradingView site in an embedded browser, opened on `CME_MINI:MNQ1!`. Sign in with your TradingView account (email/username) and your real-time data, layouts, indicators and TradingView alerts carry over. The login persists between launches.
-- **Journal:** add trades by hand or import Tradovate's Performance report CSV. Setup, tags, stop and notes are kept when the same trades are re-imported.
+- **Chart:** the full TradingView site in an embedded browser, opened on `CME_MINI:MNQ1!`. Use **Sign in to TradingView** (Google, Apple or email) and your real-time data, layouts, indicators and TradingView alerts carry over. The login persists between launches.
+- **Journal:** drop, paste or pick a screenshot of a trade and Claude fills in the details for you to check (needs your Anthropic API key in Settings, roughly 1-2 cents per screenshot). You can also add trades by hand or import Tradovate's Performance report CSV. Setup, tags, stop and notes are kept when the same trades are re-imported.
 - **Analysis:** net P&L, win rate, profit factor, expectancy, average R, max drawdown, equity curve, daily P&L, and breakdowns by setup, hour (ET) and weekday. MNQ is valued at $2/point.
 - **Accounts:** dashboard for prop firm evaluations and funded accounts: balance, profit target progress, trailing/EOD/static drawdown room and breach level, daily loss limit and trading days. Pick the account when importing or logging trades.
 - **Alerts:** price-cross alerts shown as desktop notifications while the app is open, checked every 15s against a free delayed quote (Yahoo Finance `MNQ=F`, unofficial).
