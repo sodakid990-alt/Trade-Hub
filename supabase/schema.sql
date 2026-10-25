@@ -21,3 +21,5 @@ alter table accounts enable row level security;
 create policy "own trades" on trades for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
 create policy "own alerts" on alerts for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
 create policy "own accounts" on accounts for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
+
+grant select, insert, update, delete on trades, alerts, accounts to authenticated;
