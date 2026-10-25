@@ -5,6 +5,7 @@ import { AnalysisPage } from './pages/AnalysisPage'
 import { AlertsPage } from './pages/AlertsPage'
 import { SyncPage } from './pages/SyncPage'
 import { useAutoSync } from './components/useAutoSync'
+import { useQuote } from './components/useQuote'
 
 const PAGES = { Chart: ChartPage, Journal: JournalPage, Analysis: AnalysisPage, Alerts: AlertsPage, Sync: SyncPage }
 type PageName = keyof typeof PAGES
@@ -12,6 +13,7 @@ type PageName = keyof typeof PAGES
 export function App() {
   const [page, setPage] = useState<PageName>('Chart')
   const status = useAutoSync()
+  const { quote, error } = useQuote()
   const Page = PAGES[page]
   return (
     <div className="app">
@@ -22,6 +24,11 @@ export function App() {
             {p}
           </button>
         ))}
+        <div className="quote">
+          <div className="muted">MNQ (delayed)</div>
+          <div className="price">{quote ? quote.price.toFixed(2) : error ? '—' : '…'}</div>
+          {error && <div className="muted small">{error}</div>}
+        </div>
         <div className="sync-status">{status}</div>
       </nav>
       <main className="content">

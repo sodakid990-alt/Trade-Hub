@@ -86,3 +86,12 @@ describe('alerts', () => {
     expect(crossed([a, b], 21001, 21002)).toEqual([])
   })
 })
+
+import { parseYahooChart } from '../../../main/quote'
+
+describe('quote parsing', () => {
+  it('reads the last price from a Yahoo chart response', () => {
+    expect(parseYahooChart({ chart: { result: [{ meta: { regularMarketPrice: 21012.5, regularMarketTime: 100 } }] } })).toEqual({ price: 21012.5, time: 100 })
+    expect(parseYahooChart({ chart: { result: null } })).toBeNull()
+  })
+})

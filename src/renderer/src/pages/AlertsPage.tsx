@@ -30,7 +30,7 @@ export function AlertsPage() {
         <input placeholder="Note (optional)" value={note} onChange={(e) => setNote(e.target.value)} />
         <button className="primary" type="submit">Add alert</button>
       </form>
-      <p className="muted">Alerts are checked while the app is open and show as desktop notifications. They also appear as dashed lines on the chart.</p>
+      <p className="muted">Alerts are checked every 15 seconds against a free delayed MNQ quote while the app is open, and show as desktop notifications. Use them for levels you're watching, not for precise entries.</p>
       <table>
         <thead><tr><th>Level</th><th>Note</th><th>Status</th><th /></tr></thead>
         <tbody>

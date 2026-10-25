@@ -14,10 +14,10 @@ npm run dist:mac   # macOS .dmg -> dist/ (build on a Mac)
 
 ## Features
 
-- **Chart:** MNQ candles (1m/5m/15m/1h), alert levels as dashed lines, journal trades as markers. Uses a simulated feed until a real data source is connected (`src/renderer/src/lib/marketData.ts`).
+- **Chart:** TradingView's free embedded Advanced Chart on `CME_MINI:MNQ1!` with VWAP and TradingView's drawing tools. CME data in the free widget is delayed.
 - **Journal:** add trades by hand or import Tradovate's Performance report CSV. Setup, tags, stop and notes are kept when the same trades are re-imported.
 - **Analysis:** net P&L, win rate, profit factor, expectancy, average R, max drawdown, equity curve, daily P&L, and breakdowns by setup, hour (ET) and weekday. MNQ is valued at $2/point.
-- **Alerts:** price-cross alerts shown as desktop notifications while the app is open.
+- **Alerts:** price-cross alerts shown as desktop notifications while the app is open, checked every 15s against a free delayed quote (Yahoo Finance `MNQ=F`, unofficial).
 - **Sync:** data is stored locally first and synced through Supabase when signed in.
 
 ## Setting up sync

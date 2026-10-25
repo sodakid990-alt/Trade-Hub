@@ -1,5 +1,6 @@
 import { app, BrowserWindow, ipcMain, Notification, shell } from 'electron'
 import { join } from 'node:path'
+import { fetchQuote } from './quote'
 
 function createWindow() {
   const win = new BrowserWindow({
@@ -22,6 +23,8 @@ function createWindow() {
 ipcMain.handle('notify', (_e, title: string, body: string) => {
   new Notification({ title, body, urgency: 'critical' }).show()
 })
+
+ipcMain.handle('quote', () => fetchQuote())
 
 app.whenReady().then(() => {
   createWindow()

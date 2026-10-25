@@ -5,7 +5,7 @@ body { margin: 0; background: var(--bg); color: var(--text); font: 14px/1.4 syst
 .sidebar { width: 170px; background: var(--panel); border-right: 1px solid var(--border); display: flex; flex-direction: column; padding: 12px 8px; gap: 4px; }
 .brand { font-weight: 700; padding: 4px 8px 12px; }
 .sidebar button { text-align: left; }
-.sync-status { margin-top: auto; font-size: 12px; color: var(--muted); padding: 8px; }
+.sync-status { font-size: 12px; color: var(--muted); padding: 8px; }
 .content { flex: 1; overflow: auto; }
 .page { padding: 16px 20px; }
 .chart-page { display: flex; flex-direction: column; height: 100%; }
@@ -42,3 +42,6 @@ tbody tr:hover { background: #1c2230; cursor: pointer; }
 .day.pos { background: rgba(38, 166, 154, 0.15); }
 .day.neg { background: rgba(239, 83, 80, 0.15); }
 .grid3 { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 12px; }
+.quote { margin-top: auto; padding: 8px; }
+.quote .price { font-size: 18px; }
+.small { font-size: 11px; }
