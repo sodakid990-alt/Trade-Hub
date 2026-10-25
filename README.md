@@ -33,5 +33,5 @@ The app isn't code-signed yet, so the first launch needs one extra click:
 
 1. Create a free project at supabase.com.
 2. Run `supabase/schema.sql` in its SQL editor.
-3. Add the project URL and anon key as repository secrets `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` (Settings > Secrets and variables > Actions) so the installers include them. For local builds, copy `.env.example` to `.env` instead.
+3. Put the project URL and publishable key in `.env.production` (already set for this project). Installers built from `main` include them.
 4. Sign in on the Sync page with the same account on each computer.
