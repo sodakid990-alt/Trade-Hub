@@ -6,6 +6,12 @@ import type { PageName, Prefs, Trade } from './types'
 
 export const PAGE_NAMES: PageName[] = ['Home', 'Chart', 'Journal', 'Daily', 'Analysis', 'Playbook', 'Accounts', 'Alerts', 'Settings']
 
+/** Pages that are off until turned on in Settings, to keep the sidebar short. */
+export const OPTIONAL_PAGES: PageName[] = ['Daily', 'Playbook', 'Alerts']
+
+export const visiblePages = (prefs: Pick<Prefs, 'extraPages'>) =>
+  PAGE_NAMES.filter((p) => !OPTIONAL_PAGES.includes(p) || prefs.extraPages.includes(p))
+
 export const ACCENTS = ['#5b8cff', '#8b5cf6', '#14b8a6', '#22c55e', '#f59e0b', '#ec4899']
 
 export const DEFAULT_TAGS = ['A+ setup', 'Followed plan', 'FOMO', 'Revenge', 'Moved stop', 'Early exit', 'Oversized']
@@ -16,13 +22,12 @@ export const DEFAULT_PREFS: Prefs = {
   accent: ACCENTS[0],
   compact: false,
   startPage: 'Home',
-  hiddenPages: [],
+  extraPages: [],
   defaultSymbol: 'MNQ',
   commissionPerSide: 0,
   tags: DEFAULT_TAGS,
   dailyMaxLoss: 0,
   warnAt: 0.75,
-  onboardingDone: false,
   updatedAt: '1970-01-01T00:00:00.000Z'
 }
 

@@ -8,6 +8,9 @@ import type { Payout, PropAccount } from '../lib/types'
 import { Icon } from '../components/Icon'
 import { pnlClass, usd } from '../components/format'
 import type { TradovateAccount } from '../../../preload'
+import { accountFromPlan, FIRM_PLANS, SIZES } from '../lib/firmPresets'
+import { updatePrefs, usePrefs } from '../lib/prefs'
+import type { AccountStage } from '../lib/types'
 
 const blank = (): PropAccount => ({
   id: newId(), name: '', firm: '', stage: 'eval', status: 'active', startingBalance: 50000,
@@ -18,14 +21,18 @@ export function AccountsPage() {
   const accounts = useLiveQuery(() => db.accounts.filter((a) => !a.deleted).toArray(), [])
   const trades = useLiveQuery(() => db.trades.filter((t) => !t.deleted && !!t.accountId).toArray(), [])
   const [editing, setEditing] = useState<PropAccount | null>(null)
+  const [adding, setAdding] = useState(false)
   const [showClosed, setShowClosed] = useState(false)
   const { intent, clearIntent } = useNav()
   useEffect(() => {
     if (intent === 'add-account') {
-      setEditing(blank())
+      setAdding(true)
       clearIntent()
     }
   }, [intent, clearIntent])
+  useEffect(() => {
+    if (accounts?.length === 0) setAdding(true)
+  }, [accounts?.length])
 
   const shown = (accounts ?? []).filter((a) => showClosed || a.status === 'active')
   const groups: [string, PropAccount[]][] = [
@@ -48,18 +55,19 @@ export function AccountsPage() {
           <p className="muted">Prop firm evaluations and funded accounts</p>
         </div>
         <div className="row gap">
-        <label className="muted"><input type="checkbox" checked={showClosed} onChange={(e) => setShowClosed(e.target.checked)} /> Show closed</label>
-        <button className="primary" onClick={() => setEditing(blank())}>Add account</button>
+        {(accounts ?? []).some((a) => a.status !== 'active') && (
+          <label className="muted"><input type="checkbox" checked={showClosed} onChange={(e) => setShowClosed(e.target.checked)} /> Show closed</label>
+        )}
+        <button className="primary" onClick={() => { setEditing(null); setAdding(true) }}>Add account</button>
         </div>
       </header>
+      {adding && !editing && <QuickAdd onClose={() => setAdding(false)} onCustom={() => { setAdding(false); setEditing(blank()) }} />}
       {editing && <AccountForm account={editing} onClose={() => setEditing(null)} />}
-      <div className="stats">
-        <div className="card stat"><div className="muted">Active funded</div><div className="value">{(accounts ?? []).filter((a) => a.stage === 'funded' && a.status === 'active').length}</div></div>
-        <div className="card stat"><div className="muted">Active evals</div><div className="value">{(accounts ?? []).filter((a) => a.stage === 'eval' && a.status === 'active').length}</div></div>
+      {(accounts ?? []).some((a) => a.stage === 'funded') && <div className="stats">
         <div className="card stat"><div className="muted">Funded profit</div><div className={`value ${pnlClass(totals.profit)}`}>{usd(totals.profit)}</div></div>
         <div className="card stat"><div className="muted">Funded drawdown room</div><div className="value">{usd(totals.room)}</div></div>
         <div className="card stat"><div className="muted">Total paid out</div><div className={`value ${totals.paid > 0 ? 'pos' : ''}`}>{usd(totals.paid)}</div></div>
-      </div>
+      </div>}
       {groups.map(([title, list]) =>
         list.length ? (
           <section key={title}>
@@ -72,8 +80,69 @@ export function AccountsPage() {
           </section>
         ) : null
       )}
-      {accounts?.length === 0 && <p className="muted">Add your evals and funded accounts, then pick the account when you import or log trades.</p>}
     </div>
+  )
+}
+
+/** Add an account by picking the firm's plan and size; the rules fill in from the preset. */
+function QuickAdd({ onClose, onCustom }: { onClose: () => void; onCustom: () => void }) {
+  const prefs = usePrefs()
+  const toast = useToast()
+  const [planName, setPlanName] = useState(FIRM_PLANS[0].plan)
+  const [size, setSize] = useState(50000)
+  const [stage, setStage] = useState<AccountStage>('eval')
+  const plan = FIRM_PLANS.find((p) => p.plan === planName)!
+  const preview = accountFromPlan(plan, size, stage, { id: '', updatedAt: '' })
+  const add = async () => {
+    const account = accountFromPlan(plan, size, stage, { id: newId(), updatedAt: stamp() })
+    await saveAccount(account)
+    // The first account becomes where new trades go, so there's nothing to pick later.
+    if (!prefs.defaultAccountId) await updatePrefs({ defaultAccountId: account.id })
+    toast(`Added ${account.name}`)
+    onClose()
+  }
+  const usd = (n: number) => '$' + n.toLocaleString()
+  const rules = [
+    preview.profitTarget && `${usd(preview.profitTarget)} profit target`,
+    `${usd(preview.maxDrawdown)} ${preview.drawdownType === 'eod' ? 'end-of-day' : 'intraday'} drawdown`,
+    preview.dailyLossLimit ? `${usd(preview.dailyLossLimit)} daily loss limit` : 'no daily loss limit'
+  ].filter(Boolean)
+  return (
+    <section className="card quick-add">
+      <h3>Add an account</h3>
+      <div className="quick-row">
+        <span className="field-label">Lucid plan</span>
+        <div className="chips">
+          {FIRM_PLANS.map((p) => (
+            <button key={p.plan} className={`chip ${p.plan === planName ? 'active' : ''}`} onClick={() => setPlanName(p.plan)}>{p.plan}</button>
+          ))}
+        </div>
+      </div>
+      <div className="quick-row">
+        <span className="field-label">Size</span>
+        <div className="chips">
+          {SIZES.map((s) => (
+            <button key={s} className={`chip ${s === size ? 'active' : ''}`} onClick={() => setSize(s)}>{s / 1000}K</button>
+          ))}
+        </div>
+      </div>
+      {!plan.fundedOnly && (
+        <div className="quick-row">
+          <span className="field-label">Stage</span>
+          <div className="segmented">
+            <button className={stage === 'eval' ? 'active' : ''} onClick={() => setStage('eval')}>Evaluation</button>
+            <button className={stage === 'funded' ? 'active' : ''} onClick={() => setStage('funded')}>Funded</button>
+          </div>
+        </div>
+      )}
+      <p className="muted small">Rules filled in for you: {rules.join(', ')}. You can change them later by clicking the account.</p>
+      <div className="row gap">
+        <button className="link" onClick={onCustom}>Different firm? Enter the rules yourself</button>
+        <div className="spacer" />
+        <button className="ghost" onClick={onClose}>Cancel</button>
+        <button className="primary" onClick={add}>Add {preview.name}</button>
+      </div>
+    </section>
   )
 }
 

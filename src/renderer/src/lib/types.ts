@@ -114,7 +114,8 @@ export interface Prefs {
   accent: string
   compact: boolean
   startPage: PageName
-  hiddenPages: PageName[]
+  /** Optional pages turned on in Settings (Daily, Playbook, Alerts). */
+  extraPages: PageName[]
   defaultSymbol: string
   defaultAccountId?: string
   /** Commission + fees per contract per side, added to new trades automatically. */
@@ -124,6 +125,5 @@ export interface Prefs {
   dailyMaxLoss: number
   /** Warn when this share of a loss limit or drawdown is used, e.g. 0.75. */
   warnAt: number
-  onboardingDone: boolean
   updatedAt: string
 }

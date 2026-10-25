@@ -4,21 +4,21 @@ import type { User } from '@supabase/supabase-js'
 import type { TradovateAccount, TradovateCreds } from '../../../preload'
 import { supabase, syncNow } from '../lib/sync'
 import { db } from '../lib/db'
-import { ACCENTS, DEFAULT_TAGS, PAGE_NAMES, updatePrefs, usePrefs } from '../lib/prefs'
+import { ACCENTS, DEFAULT_TAGS, OPTIONAL_PAGES, updatePrefs, usePrefs, visiblePages } from '../lib/prefs'
 import type { PageName, Prefs } from '../lib/types'
 import { Icon } from '../components/Icon'
 import { useToast } from '../components/app'
 
-const SECTIONS = ['Appearance', 'Trading', 'Rules', 'Sync', 'Tradovate'] as const
+const SECTIONS = ['Basics', 'Connections', 'More options'] as const
 
 export function SettingsPage() {
-  const [section, setSection] = useState<(typeof SECTIONS)[number]>('Appearance')
+  const [section, setSection] = useState<(typeof SECTIONS)[number]>('Basics')
   return (
     <div className="page narrow">
       <header className="page-header">
         <div>
           <h1>Settings</h1>
-          <p className="muted">Make the app work the way you trade. Changes save automatically and sync to your other computer.</p>
+          <p className="muted">Changes save automatically and sync to your other computer.</p>
         </div>
       </header>
       <div className="tabs">
@@ -26,11 +26,16 @@ export function SettingsPage() {
           <button key={s} className={`tab ${s === section ? 'active' : ''}`} onClick={() => setSection(s)}>{s}</button>
         ))}
       </div>
-      {section === 'Appearance' && <AppearanceSettings />}
-      {section === 'Trading' && <TradingSettings />}
-      {section === 'Rules' && <RulesSettings />}
-      {section === 'Sync' && <SyncSettings />}
-      {section === 'Tradovate' && <TradovateSettings />}
+      {section === 'Basics' && <BasicSettings />}
+      {section === 'Connections' && (
+        <>
+          <h3 className="section-title">Sync between your computers</h3>
+          <SyncSettings />
+          <h3 className="section-title">Tradovate (optional)</h3>
+          <TradovateSettings />
+        </>
+      )}
+      {section === 'More options' && <MoreSettings />}
     </div>
   )
 }
@@ -57,15 +62,78 @@ function Segmented<T extends string>({ value, options, onChange }: { value: T; o
   )
 }
 
-function AppearanceSettings() {
+function NumberSetting({ value, onChange, prefix, step = 1, placeholder }: { value: number; onChange: (n: number) => void; prefix?: string; step?: number; placeholder?: string }) {
+  const [text, setText] = useState(value ? String(value) : '')
+  useEffect(() => setText(value ? String(value) : ''), [value])
+  return (
+    <div className="input-prefix">
+      {prefix && <span>{prefix}</span>}
+      <input type="number" min={0} step={step} value={text} placeholder={placeholder ?? '0'} onChange={(e) => setText(e.target.value)} onBlur={() => onChange(Number(text) || 0)} />
+    </div>
+  )
+}
+
+/** The handful of settings most people need. */
+function BasicSettings() {
   const prefs = usePrefs()
+  const toast = useToast()
+  const accounts = useLiveQuery(() => db.accounts.filter((a) => !a.deleted && a.status === 'active').toArray(), []) ?? []
+  return (
+    <section className="card">
+      <Field label="Theme">
+        <Segmented value={prefs.theme} options={[['dark', 'Dark'], ['light', 'Light'], ['system', 'Match computer']]} onChange={(theme) => updatePrefs({ theme })} />
+      </Field>
+      <Field label="Commission per contract, per side" hint="Added to every trade for you. For example $0.62 per side is $1.24 per round trip.">
+        <NumberSetting prefix="$" step={0.01} value={prefs.commissionPerSide} onChange={(commissionPerSide) => { updatePrefs({ commissionPerSide }); toast('Commission saved') }} />
+      </Field>
+      <Field label="My daily max loss" hint="You get a warning as you get close and a stop when you hit it. Leave empty to turn off. Prop account limits are checked automatically.">
+        <NumberSetting prefix="$" value={prefs.dailyMaxLoss} onChange={(dailyMaxLoss) => updatePrefs({ dailyMaxLoss })} />
+      </Field>
+      {accounts.length > 1 && (
+        <Field label="Main account" hint="New trades go here unless you pick another.">
+          <select value={prefs.defaultAccountId ?? ''} onChange={(e) => updatePrefs({ defaultAccountId: e.target.value || undefined })}>
+            <option value="">Ask each time</option>
+            {accounts.map((a) => <option key={a.id} value={a.id}>{a.name || a.firm}</option>)}
+          </select>
+        </Field>
+      )}
+    </section>
+  )
+}
+
+const PAGE_HINTS: Partial<Record<PageName, string>> = {
+  Daily: 'Pre-market plan and end-of-day review',
+  Playbook: 'Write down your setups and their rules',
+  Alerts: 'Price alerts as desktop notifications'
+}
+
+/** Everything else, for people who want to tweak. */
+function MoreSettings() {
+  const prefs = usePrefs()
+  const [newTag, setNewTag] = useState('')
+  const addTag = () => {
+    const tag = newTag.trim()
+    if (tag && !prefs.tags.includes(tag)) updatePrefs({ tags: [...prefs.tags, tag] })
+    setNewTag('')
+  }
   const togglePage = (p: PageName) =>
-    updatePrefs({ hiddenPages: prefs.hiddenPages.includes(p) ? prefs.hiddenPages.filter((x) => x !== p) : [...prefs.hiddenPages, p] })
+    updatePrefs({ extraPages: prefs.extraPages.includes(p) ? prefs.extraPages.filter((x) => x !== p) : [...prefs.extraPages, p] })
   return (
     <>
       <section className="card">
-        <Field label="Theme">
-          <Segmented value={prefs.theme} options={[['dark', 'Dark'], ['light', 'Light'], ['system', 'Match computer']]} onChange={(theme) => updatePrefs({ theme })} />
+        <h3>Extra pages</h3>
+        <p className="muted small">Off by default to keep things simple. Turn on any you want in the sidebar.</p>
+        {OPTIONAL_PAGES.map((p) => (
+          <Field key={p} label={p} hint={PAGE_HINTS[p]}>
+            <label className="switch"><input type="checkbox" checked={prefs.extraPages.includes(p)} onChange={() => togglePage(p)} /><span /></label>
+          </Field>
+        ))}
+      </section>
+      <section className="card">
+        <Field label="Open the app on">
+          <select value={prefs.startPage} onChange={(e) => updatePrefs({ startPage: e.target.value as PageName })}>
+            {visiblePages(prefs).map((p) => <option key={p}>{p}</option>)}
+          </select>
         </Field>
         <Field label="Accent color">
           <div className="swatches">
@@ -78,69 +146,17 @@ function AppearanceSettings() {
         <Field label="Compact mode" hint="Tighter spacing to fit more trades on screen.">
           <label className="switch"><input type="checkbox" checked={prefs.compact} onChange={(e) => updatePrefs({ compact: e.target.checked })} /><span /></label>
         </Field>
-        <Field label="Open the app on">
-          <select value={prefs.startPage} onChange={(e) => updatePrefs({ startPage: e.target.value as PageName })}>
-            {PAGE_NAMES.filter((p) => !prefs.hiddenPages.includes(p)).map((p) => <option key={p}>{p}</option>)}
-          </select>
-        </Field>
-      </section>
-      <section className="card">
-        <h3>Pages in the sidebar</h3>
-        <p className="muted small">Hide the ones you don't use. Settings always stays.</p>
-        <div className="chips">
-          {PAGE_NAMES.filter((p) => p !== 'Settings').map((p) => (
-            <button key={p} className={`chip ${prefs.hiddenPages.includes(p) ? '' : 'active'}`} onClick={() => togglePage(p)} disabled={p === prefs.startPage && !prefs.hiddenPages.includes(p)} title={p === prefs.startPage ? 'This is your start page' : ''}>
-              {prefs.hiddenPages.includes(p) ? '' : '✓ '}{p}
-            </button>
-          ))}
-        </div>
-      </section>
-      {!prefs.onboardingDone ? null : (
-        <p className="muted small">
-          <button className="link" onClick={() => updatePrefs({ onboardingDone: false })}>Show the getting-started steps on Home again</button>
-        </p>
-      )}
-    </>
-  )
-}
-
-function NumberSetting({ value, onChange, prefix, step = 1, placeholder }: { value: number; onChange: (n: number) => void; prefix?: string; step?: number; placeholder?: string }) {
-  const [text, setText] = useState(value ? String(value) : '')
-  useEffect(() => setText(value ? String(value) : ''), [value])
-  return (
-    <div className="input-prefix">
-      {prefix && <span>{prefix}</span>}
-      <input type="number" min={0} step={step} value={text} placeholder={placeholder ?? '0'} onChange={(e) => setText(e.target.value)} onBlur={() => onChange(Number(text) || 0)} />
-    </div>
-  )
-}
-
-function TradingSettings() {
-  const prefs = usePrefs()
-  const toast = useToast()
-  const accounts = useLiveQuery(() => db.accounts.filter((a) => !a.deleted && a.status === 'active').toArray(), []) ?? []
-  const [newTag, setNewTag] = useState('')
-  const addTag = () => {
-    const tag = newTag.trim()
-    if (tag && !prefs.tags.includes(tag)) updatePrefs({ tags: [...prefs.tags, tag] })
-    setNewTag('')
-  }
-  return (
-    <>
-      <section className="card">
         <Field label="Default contract" hint="Used for new trades.">
           <select value={prefs.defaultSymbol} onChange={(e) => updatePrefs({ defaultSymbol: e.target.value })}>
             {['MNQ', 'NQ', 'MES', 'ES'].map((s) => <option key={s}>{s}</option>)}
           </select>
         </Field>
-        <Field label="Default account" hint="New and imported trades go here unless you pick another.">
-          <select value={prefs.defaultAccountId ?? ''} onChange={(e) => updatePrefs({ defaultAccountId: e.target.value || undefined })}>
-            <option value="">None</option>
-            {accounts.map((a) => <option key={a.id} value={a.id}>{a.name || a.firm}</option>)}
-          </select>
-        </Field>
-        <Field label="Commission per contract, per side" hint="Added to every new trade automatically. For example $0.62 per side is $1.24 per round trip on MNQ.">
-          <NumberSetting prefix="$" step={0.01} value={prefs.commissionPerSide} onChange={(commissionPerSide) => { updatePrefs({ commissionPerSide }); toast('Commission saved') }} />
+        <Field label="Warn me at" hint="How much of a loss limit can be used before the warning.">
+          <Segmented<string>
+            value={String(prefs.warnAt)}
+            options={[['0.5', '50%'], ['0.75', '75%'], ['0.9', '90%']]}
+            onChange={(v) => updatePrefs({ warnAt: Number(v) as Prefs['warnAt'] })}
+          />
         </Field>
       </section>
       <section className="card">
@@ -158,25 +174,6 @@ function TradingSettings() {
         {prefs.tags.length === 0 && <button className="link" onClick={() => updatePrefs({ tags: DEFAULT_TAGS })}>Restore the suggested tags</button>}
       </section>
     </>
-  )
-}
-
-function RulesSettings() {
-  const prefs = usePrefs()
-  return (
-    <section className="card">
-      <p className="muted">The app warns you on Home and with a desktop notification when you get close to a limit, and tells you to stop when you hit it. Prop account limits come from each account's settings.</p>
-      <Field label="My daily max loss" hint="Across all accounts. Leave at 0 to turn off.">
-        <NumberSetting prefix="$" value={prefs.dailyMaxLoss} onChange={(dailyMaxLoss) => updatePrefs({ dailyMaxLoss })} />
-      </Field>
-      <Field label="Warn me at" hint="How much of a limit can be used before the warning.">
-        <Segmented<string>
-          value={String(prefs.warnAt)}
-          options={[['0.5', '50%'], ['0.75', '75%'], ['0.9', '90%']]}
-          onChange={(v) => updatePrefs({ warnAt: Number(v) as Prefs['warnAt'] })}
-        />
-      </Field>
-    </section>
   )
 }
 

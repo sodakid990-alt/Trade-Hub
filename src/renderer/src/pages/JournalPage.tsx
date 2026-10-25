@@ -31,7 +31,8 @@ export function JournalPage() {
   const setups = useLiveQuery(() => db.setups.filter((s) => !s.deleted).sortBy('name'), []) ?? []
   const activeAccounts = allAccounts.filter((a) => a.status === 'active')
   const [account, setAccount] = useState<string | null>(null)
-  const currentAccount = account ?? prefs.defaultAccountId ?? ''
+  // With one account there's nothing to pick: new trades go straight to it.
+  const currentAccount = account ?? prefs.defaultAccountId ?? (activeAccounts.length === 1 ? activeAccounts[0].id : '')
   // Trades being edited: a manual entry, an existing trade, or drafts read from a screenshot.
   const [drafts, setDrafts] = useState<Trade[]>([])
   const [status, setStatus] = useState<{ kind: 'info' | 'error' | 'busy'; text: string } | null>(null)
@@ -111,6 +112,13 @@ export function JournalPage() {
   }
 
   const closeDraft = (id: string) => setDrafts((ds) => ds.filter((d) => d.id !== id))
+  // Only show columns that have something in them.
+  const cols = {
+    r: (trades ?? []).some((t) => rMultiple(t) !== undefined),
+    account: allAccounts.length > 1,
+    setup: (trades ?? []).some((t) => t.setup),
+    tags: (trades ?? []).some((t) => t.tags.length)
+  }
   const q = query.trim().toLowerCase()
   const shown = (trades ?? []).filter(
     (t) => !q || [t.symbol, t.side, t.setup, t.notes, accountName(t.accountId), ...t.tags].some((f) => f?.toLowerCase().includes(q))
@@ -121,13 +129,15 @@ export function JournalPage() {
       <header className="page-header">
         <div>
           <h1>Journal</h1>
-          <p className="muted">{trades?.length ?? 0} trades logged · press N for a new trade</p>
+          <p className="muted">{trades?.length ?? 0} trades logged</p>
         </div>
         <div className="row gap">
-          <select value={currentAccount} onChange={(e) => setAccount(e.target.value)} title="Account for new and imported trades">
-            <option value="">No account</option>
-            {activeAccounts.map((a) => <option key={a.id} value={a.id}>{a.name || a.firm}</option>)}
-          </select>
+          {activeAccounts.length > 1 && (
+            <select value={currentAccount} onChange={(e) => setAccount(e.target.value)} title="Account for new and imported trades">
+              <option value="">No account</option>
+              {activeAccounts.map((a) => <option key={a.id} value={a.id}>{a.name || a.firm}</option>)}
+            </select>
+          )}
           <label className="button ghost">
             <Icon name="upload" size={16} /> Import CSV
             <input type="file" accept=".csv" hidden onChange={(e) => { if (e.target.files?.[0]) onCsv(e.target.files[0]); e.target.value = '' }} />
@@ -142,7 +152,7 @@ export function JournalPage() {
         <Icon name="image" size={22} />
         <div>
           <strong>{status?.kind === 'busy' ? 'Reading screenshot…' : 'Add a trade from a screenshot'}</strong>
-          <div className="muted small">Drop an image here, paste with {navigator.platform.startsWith('Mac') ? '⌘' : 'Ctrl'}+V, or click to choose. Read on this computer for free. Clear, uncropped screenshots of your fills or Performance tab work best.</div>
+          <div className="muted small">Drop it here, paste with {navigator.platform.startsWith('Mac') ? '⌘' : 'Ctrl'}+V, or click. A screenshot of Tradovate's Performance tab works best.</div>
         </div>
         <input ref={picker} type="file" accept="image/png,image/jpeg,image/webp,image/gif" hidden onChange={(e) => { if (e.target.files?.[0]) onScreenshot(e.target.files[0]); e.target.value = '' }} />
       </label>
@@ -154,11 +164,24 @@ export function JournalPage() {
         </div>
       )}
 
+      {drafts.length > 1 && (
+        <div className="row gap save-all">
+          <span className="muted">{drafts.length} trades to check</span>
+          <div className="spacer" />
+          <button className="ghost" onClick={() => setDrafts([])}>Discard all</button>
+          <button className="primary" onClick={async () => { const n = drafts.length; await Promise.all(drafts.map((d) => saveTrade(d))); setDrafts([]); setStatus(null); toast(`Saved ${n} trades`) }}>
+            <Icon name="check" size={16} /> Save all {drafts.length}
+          </button>
+        </div>
+      )}
+
       {drafts.map((d) => (
         <TradeForm
           key={d.id}
           trade={d}
           accounts={allAccounts}
+          askAccount={activeAccounts.length > 1}
+          onChange={(t) => setDrafts((ds) => ds.map((x) => (x.id === t.id ? t : x)))}
           setups={setups}
           prefs={prefs}
           onClose={() => closeDraft(d.id)}
@@ -176,7 +199,7 @@ export function JournalPage() {
       <div className="card flush">
         <table>
           <thead>
-            <tr><th>Closed</th><th>Symbol</th><th>Side</th><th className="num">Qty</th><th className="num">Entry</th><th className="num">Exit</th><th className="num">P&L</th><th className="num">R</th><th>Account</th><th>Setup</th><th>Tags</th><th /></tr>
+            <tr><th>Closed</th><th>Symbol</th><th>Side</th><th className="num">Qty</th><th className="num">Entry</th><th className="num">Exit</th><th className="num">P&L</th>{cols.r && <th className="num">R</th>}{cols.account && <th>Account</th>}{cols.setup && <th>Setup</th>}{cols.tags && <th>Tags</th>}<th /></tr>
           </thead>
           <tbody>
             {shown.map((t) => {
@@ -191,26 +214,33 @@ export function JournalPage() {
                   <td className="num">{t.entryPrice.toFixed(2)}</td>
                   <td className="num">{t.exitPrice.toFixed(2)}</td>
                   <td className={`num ${pnlClass(pnl)}`}><strong>{usd(pnl)}</strong></td>
-                  <td className="num">{r === undefined ? '' : r.toFixed(2) + 'R'}</td>
-                  <td className="muted">{accountName(t.accountId)}</td>
-                  <td>{t.setup}</td>
-                  <td>{t.tags.map((tag) => <span key={tag} className="tag">{tag}</span>)}</td>
+                  {cols.r && <td className="num">{r === undefined ? '' : r.toFixed(2) + 'R'}</td>}
+                  {cols.account && <td className="muted">{accountName(t.accountId)}</td>}
+                  {cols.setup && <td>{t.setup}</td>}
+                  {cols.tags && <td>{t.tags.map((tag) => <span key={tag} className="tag">{tag}</span>)}</td>}
                   <td><button className="icon-btn" title="Delete" onClick={(e) => { e.stopPropagation(); remove(t) }}><Icon name="trash" size={15} /></button></td>
                 </tr>
               )
             })}
           </tbody>
         </table>
-        {trades?.length === 0 && <div className="empty">No trades yet. Drop a screenshot above, import your broker's CSV, or press N to add one by hand.</div>}
+        {trades?.length === 0 && <div className="empty">No trades yet. Drop a screenshot above, or click New trade.</div>}
         {trades && trades.length > 0 && shown.length === 0 && <div className="empty">No trades match "{query}".</div>}
       </div>
     </div>
   )
 }
 
-function TradeForm({ trade, accounts, setups, prefs, onClose, onSaved }: { trade: Trade; accounts: PropAccount[]; setups: Setup[]; prefs: Prefs; onClose: () => void; onSaved: () => void }) {
-  const [t, setT] = useState(trade)
+function TradeForm({ trade, accounts, askAccount, setups, prefs, onChange, onClose, onSaved }: { trade: Trade; accounts: PropAccount[]; askAccount: boolean; setups: Setup[]; prefs: Prefs; onChange: (t: Trade) => void; onClose: () => void; onSaved: () => void }) {
+  const [t, setLocal] = useState(trade)
   const [newTag, setNewTag] = useState('')
+  // Extras stay tucked away unless the trade already uses them.
+  const [more, setMore] = useState(!!(trade.notes || trade.setup || trade.tags.length || trade.stopPrice))
+  const setT = setLocal
+  // Edits flow back up so "Save all" saves what's on screen.
+  const report = useRef(onChange)
+  report.current = onChange
+  useEffect(() => report.current(t), [t])
   const set = <K extends keyof Trade>(k: K, v: Trade[K]) => setT((cur) => ({ ...cur, [k]: v }))
   const num = (k: 'entryPrice' | 'exitPrice' | 'fees') => (
     <input type="number" step={k === 'fees' ? '0.01' : '0.25'} value={t[k]} onChange={(e) => set(k, parseFloat(e.target.value) || 0)} />
@@ -237,7 +267,6 @@ function TradeForm({ trade, accounts, setups, prefs, onClose, onSaved }: { trade
         <div className="spacer" />
         <span className={`pnl-preview ${pnlClass(preview)}`}>{usd(preview)}</span>
       </div>
-      <label>Symbol<input value={t.symbol} onChange={(e) => set('symbol', e.target.value.toUpperCase())} /></label>
       <label>Side
         <div className="segmented">
           <button type="button" className={t.side === 'long' ? 'active long' : ''} onClick={() => set('side', 'long')}>Long</button>
@@ -247,39 +276,57 @@ function TradeForm({ trade, accounts, setups, prefs, onClose, onSaved }: { trade
       <label>Contracts<input type="number" min={1} value={t.qty} onChange={(e) => setQty(parseInt(e.target.value, 10) || 1)} /></label>
       <label>Entry{num('entryPrice')}</label>
       <label>Exit{num('exitPrice')}</label>
-      <label>Stop <span className="hint">for R-multiple</span>
-        <input type="number" step="0.25" value={t.stopPrice ?? ''} onChange={(e) => set('stopPrice', e.target.value ? parseFloat(e.target.value) : undefined)} />
-      </label>
-      <label>Fees{num('fees')}</label>
-      <label>Entry time<input type="datetime-local" value={toLocalInput(t.entryTime)} onChange={(e) => set('entryTime', new Date(e.target.value).toISOString())} /></label>
-      <label>Exit time<input type="datetime-local" value={toLocalInput(t.exitTime)} onChange={(e) => set('exitTime', new Date(e.target.value).toISOString())} /></label>
-      <label>Account
-        <select value={t.accountId ?? ''} onChange={(e) => set('accountId', e.target.value || undefined)}>
-          <option value="">None</option>
-          {accounts.map((a) => <option key={a.id} value={a.id}>{a.name || a.firm}</option>)}
-        </select>
-      </label>
-      <div className="wide chip-field">
-        <span className="field-label">Setup</span>
-        <div className="chips">
-          {setups.map((s) => (
-            <button type="button" key={s.id} className={`chip ${t.setup === s.name ? 'active' : ''}`} style={t.setup === s.name ? { borderColor: s.color, background: s.color + '26' } : undefined} onClick={() => set('setup', t.setup === s.name ? undefined : s.name)}>
-              {s.name}
-            </button>
-          ))}
-          <input className="chip-input" value={setups.some((s) => s.name === t.setup) ? '' : t.setup ?? ''} placeholder={setups.length ? 'Other…' : 'e.g. ORB, VWAP reclaim'} onChange={(e) => set('setup', e.target.value || undefined)} />
-        </div>
-      </div>
-      <div className="wide chip-field">
-        <span className="field-label">Tags</span>
-        <div className="chips">
-          {allTags.map((tag) => (
-            <button type="button" key={tag} className={`chip ${t.tags.includes(tag) ? 'active' : ''}`} onClick={() => toggleTag(tag)}>{tag}</button>
-          ))}
-          <input className="chip-input" value={newTag} placeholder="+ New tag" onChange={(e) => setNewTag(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addTag() } }} onBlur={addTag} />
-        </div>
-      </div>
-      <label className="wide">Notes<textarea rows={3} value={t.notes ?? ''} placeholder="Why did you take it? How did you feel? What would you do differently?" onChange={(e) => set('notes', e.target.value)} /></label>
+      {askAccount && (
+        <label>Account
+          <select value={t.accountId ?? ''} onChange={(e) => set('accountId', e.target.value || undefined)}>
+            <option value="">None</option>
+            {accounts.map((a) => <option key={a.id} value={a.id}>{a.name || a.firm}</option>)}
+          </select>
+        </label>
+      )}
+      <button type="button" className="link wide more-toggle" onClick={() => setMore(!more)}>
+        {more ? 'Hide details' : 'Add details: setup, tags, notes, stop, fees, time'}
+      </button>
+      {more && (
+        <>
+          <label>Symbol<input value={t.symbol} onChange={(e) => set('symbol', e.target.value.toUpperCase())} /></label>
+          <label>Stop <span className="hint">for R-multiple</span>
+            <input type="number" step="0.25" value={t.stopPrice ?? ''} onChange={(e) => set('stopPrice', e.target.value ? parseFloat(e.target.value) : undefined)} />
+          </label>
+          <label>Fees{num('fees')}</label>
+          <label>Entry time<input type="datetime-local" value={toLocalInput(t.entryTime)} onChange={(e) => set('entryTime', new Date(e.target.value).toISOString())} /></label>
+          <label>Exit time<input type="datetime-local" value={toLocalInput(t.exitTime)} onChange={(e) => set('exitTime', new Date(e.target.value).toISOString())} /></label>
+          {!askAccount && accounts.length > 0 && (
+            <label>Account
+              <select value={t.accountId ?? ''} onChange={(e) => set('accountId', e.target.value || undefined)}>
+                <option value="">None</option>
+                {accounts.map((a) => <option key={a.id} value={a.id}>{a.name || a.firm}</option>)}
+              </select>
+            </label>
+          )}
+          <div className="wide chip-field">
+            <span className="field-label">Setup</span>
+            <div className="chips">
+              {setups.map((s) => (
+                <button type="button" key={s.id} className={`chip ${t.setup === s.name ? 'active' : ''}`} style={t.setup === s.name ? { borderColor: s.color, background: s.color + '26' } : undefined} onClick={() => set('setup', t.setup === s.name ? undefined : s.name)}>
+                  {s.name}
+                </button>
+              ))}
+              <input className="chip-input" value={setups.some((s) => s.name === t.setup) ? '' : t.setup ?? ''} placeholder={setups.length ? 'Other…' : 'e.g. ORB, VWAP reclaim'} onChange={(e) => set('setup', e.target.value || undefined)} />
+            </div>
+          </div>
+          <div className="wide chip-field">
+            <span className="field-label">Tags</span>
+            <div className="chips">
+              {allTags.map((tag) => (
+                <button type="button" key={tag} className={`chip ${t.tags.includes(tag) ? 'active' : ''}`} onClick={() => toggleTag(tag)}>{tag}</button>
+              ))}
+              <input className="chip-input" value={newTag} placeholder="+ New tag" onChange={(e) => setNewTag(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addTag() } }} onBlur={addTag} />
+            </div>
+          </div>
+          <label className="wide">Notes<textarea rows={3} value={t.notes ?? ''} placeholder="Why did you take it? How did you feel? What would you do differently?" onChange={(e) => set('notes', e.target.value)} /></label>
+        </>
+      )}
       <div className="wide actions">
         <button type="button" className="ghost" onClick={onClose}>Cancel</button>
         <button type="submit" className="primary">Save trade</button>

@@ -286,3 +286,14 @@ h3 svg { vertical-align: -2px; margin-right: 4px; color: var(--accent); }
 .payouts { display: flex; flex-direction: column; gap: 6px; padding-top: 6px; border-top: 1px solid var(--border); }
 .payout-row { font-size: 12.5px; padding: 4px 0; border-bottom: 1px dashed var(--border); }
 .payouts input[type='number'] { width: 120px; }
+
+/* Simpler flows */
+.step { padding: 10px 6px; align-items: center; }
+.step .check { width: 24px; height: 24px; font-size: 12px; font-weight: 600; color: var(--accent); border-color: var(--accent); }
+.step-hint { display: block; margin-top: 2px; }
+.step.done .step-hint { display: none; }
+.quick-add { display: flex; flex-direction: column; gap: 12px; border-color: color-mix(in srgb, var(--accent) 40%, var(--border)); }
+.quick-row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.quick-row .field-label { width: 80px; }
+.more-toggle { justify-self: start; text-align: left; padding: 0; }
+.save-all { margin-bottom: 12px; }

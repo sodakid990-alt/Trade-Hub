@@ -14,7 +14,7 @@ import { useTradovateSync } from './components/useTradovateSync'
 import { useGuardrailAlerts } from './components/useGuardrailAlerts'
 import { Icon, type IconName } from './components/Icon'
 import { NavContext, ToastProvider, type Intent } from './components/app'
-import { PAGE_NAMES, usePrefs } from './lib/prefs'
+import { usePrefs, visiblePages } from './lib/prefs'
 import type { PageName } from './lib/types'
 
 const PAGES: Record<PageName, { icon: IconName; Page: () => React.ReactNode; hint: string }> = {
@@ -46,8 +46,9 @@ function Shell() {
   const brokerStatus = useTradovateSync()
   useGuardrailAlerts()
 
-  const current = page ?? prefs.startPage
-  const visible = PAGE_NAMES.filter((p) => p === 'Settings' || !prefs.hiddenPages.includes(p))
+  const visible = visiblePages(prefs)
+  const wanted = page ?? prefs.startPage
+  const current = visible.includes(wanted) ? wanted : 'Home'
   const nav = useMemo(
     () => ({ page: current, go: (p: PageName, i: Intent = null) => { setPage(p); setIntent(i) }, intent, clearIntent: () => setIntent(null) }),
     [current, intent]

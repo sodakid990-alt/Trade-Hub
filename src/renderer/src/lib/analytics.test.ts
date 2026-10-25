@@ -3,6 +3,7 @@ import { netPnl, rMultiple, summarize, equityCurve } from './analytics'
 import { rootSymbol } from './contracts'
 import { parseTradovatePerformance } from './importCsv'
 import { mergeRecords } from './sync'
+import { accountFromPlan, FIRM_PLANS } from './firmPresets'
 import type { Trade } from './types'
 
 const base: Trade = {
@@ -196,5 +197,18 @@ describe('guardrails', () => {
     const [a, b] = withDefaultFees([{ ...base, qty: 2, fees: 0 }, { ...base, fees: 3 }], { commissionPerSide: 0.62 })
     expect(a.fees).toBe(2.48)
     expect(b.fees).toBe(3)
+  })
+})
+
+
+describe('firm presets', () => {
+  const base = { id: 'a', updatedAt: '' }
+  it('fills in LucidPro 50K eval rules', () => {
+    const a = accountFromPlan(FIRM_PLANS.find((p) => p.plan === 'LucidPro')!, 50000, 'eval', base)
+    expect(a).toMatchObject({ name: 'LucidPro 50K Eval', profitTarget: 3000, maxDrawdown: 2000, drawdownType: 'eod', dailyLossLimit: 1200, drawdownLockBalance: 50100 })
+  })
+  it('LucidDirect is always funded with no target', () => {
+    const a = accountFromPlan(FIRM_PLANS.find((p) => p.plan === 'LucidDirect')!, 100000, 'eval', base)
+    expect(a).toMatchObject({ stage: 'funded', profitTarget: undefined, maxDrawdown: 3500, dailyLossLimit: 2100 })
   })
 })
